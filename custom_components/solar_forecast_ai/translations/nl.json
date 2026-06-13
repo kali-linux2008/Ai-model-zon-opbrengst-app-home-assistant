@@ -1,0 +1,81 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Solar Forecast AI instellen",
+        "description": "Configureer je zonpanelen. Locatie wordt automatisch overgenomen uit Home Assistant ({latitude}°N, {longitude}°O). Geen API-sleutel nodig!",
+        "data": {
+          "peak_power": "Piekvermogen zonpanelen (kWp)",
+          "performance_ratio": "Prestatieratio (PR)",
+          "forecast_days": "Voorspellingsperiode (dagen)",
+          "production_sensor": "Opbrengst sensor (voor leren)",
+          "consumption_sensor": "Verbruik sensor (voor zelfverbruik)"
+        },
+        "data_description": {
+          "peak_power": "Totaal geïnstalleerd vermogen van alle panelen bij standaard testomstandigheden (STC). Staat op het typeplaatje van je omvormer.",
+          "performance_ratio": "Systeem rendement inclusief omvormer, kabelverliezen, vervuiling. Typisch 0.75-0.85. Laat standaard staan als je het niet weet.",
+          "forecast_days": "Aantal dagen waarvoor voorspellingen worden gemaakt (1-7).",
+          "production_sensor": "Selecteer een sensor die de dagelijkse opbrengst bijhoudt (kWh). Het AI-model leert hiervan om steeds nauwkeuriger te worden.",
+          "consumption_sensor": "Selecteer een sensor die het actueel verbruik bijhoudt (W of kW). Gebruikt voor zelfverbruik voorspelling."
+        }
+      }
+    },
+    "error": {
+      "no_location": "Stel eerst je locatie in via Instellingen → Systeem → Algemeen.",
+      "invalid_peak_power": "Piekvermogen moet groter zijn dan 0 kWp.",
+      "cannot_connect": "Kan geen verbinding maken met Open-Meteo. Controleer je internetverbinding."
+    },
+    "abort": {
+      "already_configured": "Solar Forecast AI is al geconfigureerd."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Solar Forecast AI opties",
+        "description": "Pas instellingen aan. Het AI-model behoudt zijn geleerde correcties.",
+        "data": {
+          "peak_power": "Piekvermogen zonpanelen (kWp)",
+          "performance_ratio": "Prestatieratio (PR)",
+          "forecast_days": "Voorspellingsperiode (dagen)",
+          "production_sensor": "Opbrengst sensor (voor leren)",
+          "consumption_sensor": "Verbruik sensor (voor zelfverbruik)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "forecast_today": {
+        "name": "Zonopbrengst Vandaag"
+      },
+      "forecast_tomorrow": {
+        "name": "Zonopbrengst Morgen"
+      },
+      "forecast_7days": {
+        "name": "Zonopbrengst 7 Dagen"
+      },
+      "forecast_power_now": {
+        "name": "Verwacht Zonnestroom Nu"
+      },
+      "peak_power_today": {
+        "name": "Verwacht Piekvermogen Vandaag"
+      },
+      "peak_time_today": {
+        "name": "Verwacht Piekvermogen Tijdstip"
+      },
+      "self_consumption_today": {
+        "name": "Verwacht Zelfverbruik Vandaag"
+      },
+      "self_sufficiency_today": {
+        "name": "Verwachte Zelfredzaamheid Vandaag"
+      },
+      "correction_factor": {
+        "name": "AI Correctiefactor"
+      },
+      "forecast_tomorrow_peak": {
+        "name": "Verwacht Piekvermogen Morgen"
+      }
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "domain": "solar_forecast_ai",
+  "name": "Solar Forecast AI",
+  "version": "1.0.0",
+  "documentation": "https://github.com/kali-linux2008/ai-model-zon-opbrengst-app-home-assistant",
+  "issue_tracker": "https://github.com/kali-linux2008/ai-model-zon-opbrengst-app-home-assistant/issues",
+  "codeowners": ["@kali-linux2008"],
+  "requirements": [],
+  "dependencies": [],
+  "after_dependencies": ["recorder"],
+  "iot_class": "cloud_polling",
+  "config_flow": true,
+  "quality_scale": "silver"
+}

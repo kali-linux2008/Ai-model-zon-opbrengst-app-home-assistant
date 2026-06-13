@@ -1,0 +1,8 @@
+{
+  "name": "Solar Forecast AI",
+  "content_in_root": false,
+  "homeassistant": "2023.8.0",
+  "filename": "solar_forecast_ai.zip",
+  "country": ["NL", "BE", "DE", "AT", "CH", "FR", "GB", "ES", "PT", "IT", "PL", "DK", "SE", "NO", "FI"],
+  "hide_default_branch": false
+}

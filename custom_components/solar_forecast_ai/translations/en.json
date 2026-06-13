@@ -1,0 +1,81 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Solar Forecast AI",
+        "description": "Configure your solar panels. Location is automatically detected from Home Assistant ({latitude}°N, {longitude}°E). No API key required!",
+        "data": {
+          "peak_power": "Solar panel peak power (kWp)",
+          "performance_ratio": "Performance Ratio (PR)",
+          "forecast_days": "Forecast period (days)",
+          "production_sensor": "Production sensor (for AI learning)",
+          "consumption_sensor": "Consumption sensor (for self-consumption)"
+        },
+        "data_description": {
+          "peak_power": "Total installed power of all panels at Standard Test Conditions (STC). Found on your inverter's nameplate.",
+          "performance_ratio": "System efficiency including inverter, cable losses, soiling. Typically 0.75-0.85. Leave default if unsure.",
+          "forecast_days": "Number of days to forecast (1-7).",
+          "production_sensor": "Select a sensor tracking daily energy production (kWh). The AI model learns from this to become more accurate over time.",
+          "consumption_sensor": "Select a sensor tracking current power consumption (W or kW). Used for self-consumption prediction."
+        }
+      }
+    },
+    "error": {
+      "no_location": "Please set your Home Assistant location first via Settings → System → General.",
+      "invalid_peak_power": "Peak power must be greater than 0 kWp.",
+      "cannot_connect": "Cannot connect to Open-Meteo. Check your internet connection."
+    },
+    "abort": {
+      "already_configured": "Solar Forecast AI is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Solar Forecast AI options",
+        "description": "Update settings. The AI model retains its learned corrections.",
+        "data": {
+          "peak_power": "Solar panel peak power (kWp)",
+          "performance_ratio": "Performance Ratio (PR)",
+          "forecast_days": "Forecast period (days)",
+          "production_sensor": "Production sensor (for AI learning)",
+          "consumption_sensor": "Consumption sensor (for self-consumption)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "forecast_today": {
+        "name": "Solar Forecast Today"
+      },
+      "forecast_tomorrow": {
+        "name": "Solar Forecast Tomorrow"
+      },
+      "forecast_7days": {
+        "name": "Solar Forecast 7 Days"
+      },
+      "forecast_power_now": {
+        "name": "Expected Solar Power Now"
+      },
+      "peak_power_today": {
+        "name": "Expected Peak Power Today"
+      },
+      "peak_time_today": {
+        "name": "Expected Peak Power Time"
+      },
+      "self_consumption_today": {
+        "name": "Expected Self-Consumption Today"
+      },
+      "self_sufficiency_today": {
+        "name": "Expected Self-Sufficiency Today"
+      },
+      "correction_factor": {
+        "name": "AI Correction Factor"
+      },
+      "forecast_tomorrow_peak": {
+        "name": "Expected Peak Power Tomorrow"
+      }
+    }
+  }
+}
