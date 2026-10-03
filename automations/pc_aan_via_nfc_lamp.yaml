@@ -1,0 +1,84 @@
+# ============================================================
+# NFC Tag → PC aanzetten via lamp 2x knipperen
+# ============================================================
+#
+# HOE INSTELLEN:
+# 1. Open HA app op je telefoon
+# 2. Ga naar Instellingen → NFC Tags → Tag toevoegen
+# 3. Scan je NFC tag → kopieer het Tag-ID
+# 4. Vervang 'JOUW_NFC_TAG_ID' hieronder met dat ID
+# 5. Vervang 'light.jouw_lamp' met je echte lamp entity_id
+# 6. Plak deze automatisering in HA via:
+#    Instellingen → Automatiseringen → Automatisering toevoegen → YAML bewerken
+#
+# ============================================================
+
+alias: "PC aanzetten via NFC tag"
+description: >
+  Scan NFC tag → lamp knippert 2x → PC gaat aan.
+  Werkt ook als shortcut via de HA Companion app.
+
+trigger:
+  - platform: tag
+    tag_id: JOUW_NFC_TAG_ID        # ← vervang dit met jouw NFC tag ID
+
+variables:
+  lamp: light.jouw_lamp             # ← vervang dit met jouw lamp entity_id
+
+action:
+  # Onthoud of lamp al aan was (zet hem daarna terug)
+  - variables:
+      lamp_was_on: "{{ is_state(lamp, 'on') }}"
+
+  # === Flash 1: AAN ===
+  - service: light.turn_on
+    target:
+      entity_id: "{{ lamp }}"
+    data:
+      brightness: 255
+
+  - delay:
+      milliseconds: 400
+
+  # === Flash 1: UIT ===
+  - service: light.turn_off
+    target:
+      entity_id: "{{ lamp }}"
+
+  - delay:
+      milliseconds: 400
+
+  # === Flash 2: AAN ===
+  - service: light.turn_on
+    target:
+      entity_id: "{{ lamp }}"
+    data:
+      brightness: 255
+
+  - delay:
+      milliseconds: 400
+
+  # === Flash 2: UIT ===
+  - service: light.turn_off
+    target:
+      entity_id: "{{ lamp }}"
+
+  # Zet lamp terug naar originele staat
+  - if:
+      - condition: template
+        value_template: "{{ lamp_was_on }}"
+    then:
+      - delay:
+          milliseconds: 300
+      - service: light.turn_on
+        target:
+          entity_id: "{{ lamp }}"
+
+  # Optioneel: bevestiging op telefoon
+  - service: notify.mobile_app_jouw_telefoon   # ← optioneel, anders weghalen
+    data:
+      title: "💻 PC wordt aangezet"
+      message: "Lamp heeft 2x geknipperd!"
+
+mode: single
+max_exceeded: silent
