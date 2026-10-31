@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Magazijn HMI</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+:root{--font-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}
+*{box-sizing:border-box}
+body{margin:0;padding:16px;background:#1E1E1C;min-height:100vh}
+.wrap{max-width:960px;margin:0 auto}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.bz{background:#2C2C2A;border-radius:14px;padding:12px;font-family:var(--font-mono);font-size:11px;color:#2C2C2A}
+.sc{background:#D3D1C7;border-radius:4px;overflow:hidden}
+.hd{display:flex;align-items:center;gap:8px;background:#444441;color:#F1EFE8;padding:6px 10px;flex-wrap:wrap}
+.ch{padding:2px 7px;border-radius:3px;font-size:10px}
+.pn{background:#F1EFE8;border:1px solid #B4B2A9;border-radius:3px;padding:6px}
+.pt{font-size:10px;color:#5F5E5A;letter-spacing:.5px;margin-bottom:4px}
+.rk{display:grid;grid-template-columns:repeat(9,1fr);gap:2px;position:relative}
+.v{height:17px;background:#E6E4DC;border:1px solid #B4B2A9;border-radius:2px;font-size:8px;display:flex;align-items:center;justify-content:center;color:#888780;transition:background .4s}
+.cr{position:absolute;top:-3px;bottom:-3px;width:3px;background:#BA7517;transition:left 1.4s ease-in-out;pointer-events:none}
+.cg{position:absolute;left:-7px;width:17px;height:17px;border:2px solid #BA7517;background:rgba(239,159,39,.25);transition:top 1.4s ease-in-out}
+.belt{height:14px;background:repeating-linear-gradient(90deg,#888780 0 6px,#5F5E5A 6px 8px);border-radius:2px;position:relative;overflow:hidden}
+.pal{position:absolute;top:2px;width:14px;height:10px;background:#BA7517;border-radius:1px;animation:mv 6s linear infinite}
+@keyframes mv{from{left:-16px}to{left:100%}}
+.fk{flex:1;background:#5F5E5A;color:#F1EFE8;border:1px solid #888780;border-radius:3px;padding:5px 0;text-align:center;font-size:10px}
+.bt{flex:1;border-radius:3px;padding:6px 0;text-align:center;font-size:10px;color:#fff;cursor:pointer}
+.main{display:grid;grid-template-columns:minmax(0,1fr) 148px;gap:8px;padding:8px}
+.racks{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fkeys{display:flex;gap:4px;padding:6px 8px;background:#444441;flex-wrap:wrap}
+@media (max-width:640px){
+  body{padding:16px 8px}
+  .main{grid-template-columns:minmax(0,1fr)}
+  .racks{grid-template-columns:minmax(0,1fr)}
+  .fk{flex:1 1 30%}
+}
+@media (prefers-reduced-motion:reduce){.pal{animation:none}.cr,.cg{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h2 class="sr-only">Industrieel HMI-ontwerp voor het magazijn: paneel met kopregel, alarmbalk, twee gangen met elk twee stellingen en een bewegende stapelkraan, invoerbanden, KPI-zijbalk en functietoetsen.</h2>
+<div class="bz">
+<div class="sc">
+<div class="hd">
+<i class="ti ti-building-warehouse" style="font-size:16px" aria-hidden="true"></i>
+<span style="font-weight:500;font-size:12px">MAGAZIJN — OVERZICHT</span>
+<span style="flex:1"></span>
+<span class="ch" style="background:#3B6D11;color:#EAF3DE">AUTO</span>
+<span class="ch" style="background:#5F5E5A;color:#F1EFE8"><span style="color:#97C459">●</span> PLC ONLINE</span>
+<span id="clk" style="min-width:118px;text-align:right">31-10-2026 14:32:07</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;background:#FAEEDA;border-bottom:1px solid #EF9F27;padding:4px 10px;color:#633806">
+<span class="ch" style="background:#E24B4A;color:#fff">2</span>
+<span>14:30:51 &nbsp;W-104 &nbsp;Vak 137 product onbekend (Soort 0)</span>
+<span style="flex:1"></span><span style="text-decoration:underline">Bevestigen</span>
+</div>
+<div class="main">
+<div style="display:flex;flex-direction:column;gap:8px;min-width:0" id="gangen"></div>
+<div style="display:flex;flex-direction:column;gap:8px">
+<div class="pn"><div class="pt">BEZETTING</div><div id="kpi"></div></div>
+<div class="pn"><div class="pt">DOORVOER</div><div style="font-size:18px;font-weight:500">42 <span style="font-size:10px;color:#5F5E5A">pallets/u</span></div><div style="color:#5F5E5A">In 24 · Uit 18</div></div>
+<div class="pn"><div class="pt">OUDSTE PRODUCT</div><div>Base blauw · vak 104</div><div style="color:#5F5E5A">31-10 08:12 (6u 20m)</div></div>
+<div class="pn"><div class="pt">BEDIENING</div>
+<div style="display:flex;gap:4px;margin-bottom:4px"><div class="bt" style="background:#3B6D11">START</div><div class="bt" style="background:#A32D2D">STOP</div></div>
+<div style="display:flex;gap:4px"><div class="bt" style="background:#854F0B">RESET</div><div class="bt" style="background:#5F5E5A">HAND</div></div>
+</div>
+<div class="pn" style="line-height:1.7">
+<span style="display:inline-block;width:9px;height:9px;background:#E6E4DC;border:1px solid #B4B2A9"></span> Leeg<br>
+<span style="display:inline-block;width:9px;height:9px;background:#185FA5"></span> Base &nbsp;<span style="display:inline-block;width:9px;height:9px;background:#85B7EB"></span> Lid<br>
+<span style="display:inline-block;width:9px;height:9px;border:2px solid #EF9F27"></span> Gereserveerd<br>
+<span style="display:inline-block;width:9px;height:9px;background:#E24B4A"></span> Storing
+</div>
+</div>
+</div>
+<div class="fkeys">
+<div class="fk">F1 Fabriek</div><div class="fk" style="background:#185FA5;border-color:#85B7EB">F2 Magazijn</div><div class="fk">F3 Orders</div><div class="fk">F4 Kraan</div><div class="fk">F5 Alarmen</div><div class="fk">F6 Diagnose</div>
+</div>
+</div>
+</div>
+</div>
+<script>
+const G=[{n:'GANG BLAUW',k:'K1',r:[{n:'Links',b:100},{n:'Rechts',b:200}],t:[1,2],c:{1:'#185FA5',2:'#85B7EB'}},{n:'GANG GROEN',k:'K2',r:[{n:'Links',b:300},{n:'Rechts',b:400}],t:[11,12],c:{11:'#3B6D11',12:'#97C459'}}];
+let s=11;const rnd=()=>{s=(s*9301+49297)%233280;return s/233280};
+const V={},cells={};
+const host=document.getElementById('gangen');
+G.forEach((g,gi)=>{
+const p=document.createElement('div');p.className='pn';
+p.innerHTML='<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px"><span class="pt" style="margin:0">'+g.n+'</span><span class="ch" style="background:#5F5E5A;color:#F1EFE8">KRAAN '+g.k+'</span><span id="st'+gi+'" style="color:#5F5E5A">Gereed</span></div>';
+const row=document.createElement('div');row.className='racks';
+g.racks=[];
+g.r.forEach((r,ri)=>{const w=document.createElement('div');w.innerHTML='<div style="color:#5F5E5A;font-size:9px;margin-bottom:2px">'+r.n+' '+(r.b+1)+'–'+(r.b+54)+'</div>';
+const grid=document.createElement('div');grid.className='rk';
+for(let y=6;y>=1;y--)for(let x=9;x>=1;x--){const nr=r.b+(y-1)*9+x,d=document.createElement('div');d.className='v';d.textContent=nr;
+const v={b:rnd()<0.45,t:g.t[rnd()<0.5?0:1],res:false};if(v.b&&rnd()<0.08)v.res=true;if(nr===137){v.b=true;v.t=0}
+V[nr]=v;cells[nr]=d;paint(nr,g);grid.appendChild(d)}
+const mast=document.createElement('div');mast.className='cr';mast.style.display=ri===0?'block':'none';const car=document.createElement('div');car.className='cg';mast.appendChild(car);grid.appendChild(mast);
+g.racks.push({grid,mast,car,b:r.b});w.appendChild(grid);row.appendChild(w)});
+p.appendChild(row);
+const bl=document.createElement('div');bl.style.cssText='display:flex;align-items:center;gap:6px;margin-top:6px';
+bl.innerHTML='<span style="color:#5F5E5A;font-size:9px;width:34px">INVOER</span><div class="belt" style="flex:1"><div class="pal" style="animation-delay:'+(-gi*2)+'s"></div><div class="pal" style="animation-delay:'+(-3-gi*2)+'s"></div></div><span style="color:#5F5E5A;font-size:9px;width:38px;text-align:right">UITVOER</span><div class="belt" style="flex:1"><div class="pal" style="animation-delay:'+(-1-gi)+'s;animation-duration:7s"></div></div>';
+p.appendChild(bl);host.appendChild(p)});
+function paint(nr,g){const v=V[nr],d=cells[nr];d.style.border='1px solid #B4B2A9';
+if(!v.b){d.style.background='#E6E4DC';d.style.color='#888780'}
+else if(v.t===0){d.style.background='#E24B4A';d.style.color='#fff'}
+else{d.style.background=g.c[v.t];d.style.color=(v.t===1||v.t===11)?'#fff':'#042C53'}
+if(v.res)d.style.border='2px solid #EF9F27'}
+function kpi(){let h='';G.forEach(g=>{let n=0;g.r.forEach(r=>{for(let i=1;i<=54;i++)if(V[r.b+i].b)n++});const pc=Math.round(n/108*100);
+h+='<div style="display:flex;justify-content:space-between"><span>'+g.n.replace('GANG ','')+'</span><span>'+pc+'%</span></div><div style="height:6px;background:#D3D1C7;border-radius:2px;margin:2px 0 6px"><div style="height:6px;width:'+pc+'%;background:'+(pc>85?'#E24B4A':'#5F5E5A')+';border-radius:2px"></div></div>'});document.getElementById('kpi').innerHTML=h}
+kpi();
+function move(gi){const g=G[gi],ri=rnd()<0.5?0:1,R=g.racks[ri],x=1+Math.floor(rnd()*9),y=1+Math.floor(rnd()*6),nr=R.b+(y-1)*9+x;
+g.racks.forEach((q,i)=>q.mast.style.display=i===ri?'block':'none');
+const cell=cells[nr],gr=R.grid.getBoundingClientRect(),cr=cell.getBoundingClientRect();
+R.mast.style.left=(cr.left-gr.left+cr.width/2-1)+'px';R.car.style.top=(cr.top-gr.top+3)+'px';
+const inslag=!V[nr].b;document.getElementById('st'+gi).innerHTML=(inslag?'<span style="color:#3B6D11">▶ Inslag</span>':'<span style="color:#185FA5">◀ Uitslag</span>')+' → vak '+nr;
+setTimeout(()=>{if(V[nr].t!==0){V[nr].b=inslag;V[nr].res=false;if(inslag)V[nr].t=g.t[rnd()<0.5?0:1];paint(nr,g);kpi()}document.getElementById('st'+gi).textContent='Gereed'},1500)}
+setTimeout(()=>{move(0);move(1)},300);setInterval(()=>move(0),3000);setTimeout(()=>setInterval(()=>move(1),3000),1500);
+setInterval(()=>{const d=new Date(),z=n=>String(n).padStart(2,'0');document.getElementById('clk').textContent=z(d.getDate())+'-'+z(d.getMonth()+1)+'-'+d.getFullYear()+' '+z(d.getHours())+':'+z(d.getMinutes())+':'+z(d.getSeconds())},1000);
+</script>
+</body>
+</html>
