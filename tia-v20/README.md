@@ -1,6 +1,7 @@
 # Magazijn-HMI in TIA Portal V20
 
-Voorbeeld om het ontwerp uit `magazijn-hmi/index.html` te bouwen in TIA Portal V20.
+Voorbeeld om het ontwerp te bouwen in TIA Portal V20. Gebruik `magazijn-hmi/industrieel.html`
+als referentie: dat ontwerp is 1280 × 800 en volgt exact de pixelindeling hieronder.
 De PLC doet alle logica; de HMI toont alleen tags. Er zit een kraansimulatie in,
 zodat je het geheel met PLCSIM kunt testen zonder echte installatie.
 

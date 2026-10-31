@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Magazijn HMI Industrieel</title>
+<style>
+:root{
+  --behuizing:#2E3135;--behuizing-licht:#474B50;
+  --scherm:#C6C8CA;--paneel:#DADBDC;--titel:#4E545B;--kop:#23272B;
+  --lijn:#8E9399;--tekst:#1C1F22;--tekst2:#4A4F55;
+  --staal:#6B7076;--leeg:#E9E9E6;
+  --blauw1:#185FA5;--blauw2:#85B7EB;--groen1:#3B6D11;--groen2:#97C459;
+  --storing:#E24B4A;--res:#EF9F27;--kraan:#BA7517;--geel:#F2C200;
+  --font:Arial,"Helvetica Neue",Helvetica,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:#15171A;min-height:100vh;padding:16px;font-family:var(--font);overflow-x:hidden}
+#fit{position:relative;margin:0 auto}
+#paneel{position:absolute;top:0;left:0;transform-origin:0 0;width:1360px;height:900px;
+  background:linear-gradient(180deg,var(--behuizing-licht),var(--behuizing) 12%,var(--behuizing) 88%,#202326);
+  border-radius:22px;padding:40px;box-shadow:0 0 0 2px #0c0d0e,inset 0 1px 0 #6a6f75,0 18px 40px rgba(0,0,0,.6)}
+.schroef{position:absolute;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#9aa0a6,#3c4045);box-shadow:inset 0 0 0 1px #222}
+.schroef::after{content:"";position:absolute;left:3px;right:3px;top:6px;height:2px;background:#2a2d31;transform:rotate(35deg)}
+.merk{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);color:#8A9096;font-size:13px;letter-spacing:3px}
+.led-run{position:absolute;bottom:13px;right:60px;display:flex;align-items:center;gap:6px;color:#8A9096;font-size:11px;letter-spacing:1px}
+.led-run i{width:9px;height:9px;border-radius:50%;background:#5CE05C;box-shadow:0 0 6px #5CE05C}
+#scherm{position:relative;width:1280px;height:800px;background:var(--scherm);overflow:hidden;
+  box-shadow:0 0 0 3px #101214,inset 0 0 0 1px #9da2a7;color:var(--tekst);font-size:14px;user-select:none}
+.abs{position:absolute}
+
+/* kopregel */
+#kop{left:0;top:0;width:1280px;height:40px;background:var(--kop);color:#EEF0F2;display:flex;align-items:center;gap:12px;padding:0 12px;border-bottom:2px solid #000}
+#kop .titel{font-size:18px;font-weight:700;letter-spacing:1px}
+.chip{height:26px;display:flex;align-items:center;gap:6px;padding:0 10px;border:1px solid #5d646b;background:#33393F;font-size:13px;font-weight:700}
+.led{width:10px;height:10px;border-radius:50%;box-shadow:inset 0 -1px 2px rgba(0,0,0,.4)}
+#klok{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;min-width:170px;text-align:right}
+
+/* alarmregel */
+#alarm{left:0;top:40px;width:1280px;height:30px;display:flex;align-items:center;gap:10px;padding:0 8px 0 0;border-bottom:1px solid #000;font-size:14px;font-weight:700}
+#alarm.actief{background:var(--geel);color:#000}
+#alarm.rust{background:#B9BCBF;color:#3A3F44}
+#alarm .streep{width:34px;height:30px;background:repeating-linear-gradient(-45deg,#000 0 7px,var(--geel) 7px 14px)}
+#alarm.rust .streep{background:repeating-linear-gradient(-45deg,#8E9399 0 7px,#B9BCBF 7px 14px)}
+#alarm .teller{min-width:26px;height:22px;display:flex;align-items:center;justify-content:center;background:#C00;color:#fff;font-size:13px}
+#alarm.knipper .teller{animation:knip 1s steps(1) infinite}
+@keyframes knip{50%{background:#000}}
+
+/* knoppen met relief */
+.knop{display:flex;align-items:center;justify-content:center;font-weight:700;cursor:pointer;
+  border:2px solid;border-color:#F4F5F6 #6E737A #6E737A #F4F5F6;background:linear-gradient(#E3E4E5,#C2C5C8);color:var(--tekst)}
+.knop:active,.knop.in{border-color:#6E737A #F4F5F6 #F4F5F6 #6E737A;background:linear-gradient(#B4B8BC,#D0D3D6)}
+.knop.groot{height:56px;font-size:17px;letter-spacing:1px;gap:8px}
+.knop .lamp{width:14px;height:14px;border-radius:50%;border:1px solid #333;background:#777}
+
+/* panelen */
+.pnl{background:var(--paneel);border:1px solid #fff;outline:1px solid #7E848A;box-shadow:inset -1px -1px 0 #A9AEB3}
+.pnl-titel{height:26px;background:var(--titel);color:#fff;display:flex;align-items:center;gap:10px;padding:0 10px;font-size:14px;font-weight:700;letter-spacing:1px}
+.label{font-size:12px;color:var(--tekst2);font-weight:700;letter-spacing:.5px}
+
+/* stelling */
+.stelling{width:470px;height:218px;background:var(--staal);border:1px solid #3d4146}
+.vak{position:absolute;width:50px;height:34px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;border:1px solid #9a9ea3;transition:background-color .4s}
+.mast{position:absolute;width:4px;height:226px;background:var(--kraan);box-shadow:0 0 0 1px #6b430c;transition:left 1.4s ease-in-out;pointer-events:none}
+.slede{position:absolute;width:54px;height:38px;border:3px solid var(--kraan);background:rgba(239,159,39,.18);transition:left 1.4s ease-in-out,top 1.4s ease-in-out;pointer-events:none}
+.rail{position:absolute;height:4px;background:#3d4146}
+
+.band{position:absolute;height:18px;border:1px solid #3d4146;background:repeating-linear-gradient(90deg,#8E9399 0 10px,#5E6369 10px 12px);overflow:hidden}
+.pallet{position:absolute;top:2px;width:22px;height:12px;background:var(--kraan);border:1px solid #6b430c;animation:loop 7s linear infinite}
+.stil .pallet{animation-play-state:paused}
+@keyframes loop{from{left:-24px}to{left:100%}}
+
+/* zijbalk */
+.balk{height:16px;background:#fff;border:1px solid #6E737A;position:relative}
+.balk i{position:absolute;left:0;top:0;bottom:0;background:#5E6369}
+.balk b{position:absolute;top:-3px;bottom:-3px;width:2px;background:#C00}
+.getal{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
+.leg{display:flex;align-items:center;gap:8px;font-size:13px;height:21px}
+.leg span{width:22px;height:14px;border:1px solid #9a9ea3}
+
+/* f-toetsen */
+#ftoetsen{left:0;top:750px;width:1280px;height:50px;background:#2F3439;display:flex;gap:6px;padding:5px 6px;border-top:2px solid #000}
+#ftoetsen .knop{flex:1;font-size:15px;gap:8px}
+#ftoetsen .knop small{font-size:12px;color:#4A4F55}
+#ftoetsen .knop.actief{background:linear-gradient(#2A71B8,#185FA5);color:#fff;border-color:#85B7EB #0d3a66 #0d3a66 #85B7EB}
+#ftoetsen .knop.actief small{color:#cfe2f6}
+@media (prefers-reduced-motion:reduce){.pallet{animation:none}.mast,.slede{transition:none}#alarm.knipper .teller{animation:none}}
+</style>
+</head>
+<body>
+<div id="fit">
+<div id="paneel">
+  <div class="schroef" style="left:12px;top:12px"></div><div class="schroef" style="right:12px;top:12px"></div>
+  <div class="schroef" style="left:12px;bottom:12px"></div><div class="schroef" style="right:12px;bottom:12px"></div>
+  <div class="merk">TOUCH PANEL 12"</div>
+  <div class="led-run"><i></i>RUN</div>
+
+  <div id="scherm" role="img" aria-label="Industrieel HMI-scherm voor het magazijn, 1280 bij 800 pixels: kopregel, alarmregel, twee gangen met stellingen en stapelkranen, zijbalk met bezetting en bediening, functietoetsen.">
+    <div id="kop" class="abs">
+      <span class="titel">MAGAZIJN — OVERZICHT</span>
+      <span style="flex:1"></span>
+      <span class="chip" id="chipModus"><span class="led" id="ledModus"></span><span id="txtModus">AUTO</span></span>
+      <span class="chip"><span class="led" style="background:#5CE05C"></span>PLC ONLINE</span>
+      <span class="chip">OPERATOR</span>
+      <span id="klok">31-10-2026 14:32:07</span>
+    </div>
+
+    <div id="alarm" class="abs actief knipper">
+      <span class="streep"></span>
+      <span class="teller" id="alarmTeller">1</span>
+      <span id="alarmTekst">14:30:51 &nbsp; W-104 &nbsp; Vak 137 — product onbekend (Soort 0)</span>
+      <span style="flex:1"></span>
+      <span class="knop" id="btnBevestig" style="height:24px;padding:0 14px;font-size:13px">BEVESTIGEN</span>
+    </div>
+
+    <div id="gangen"></div>
+
+    <!-- zijbalk -->
+    <div class="abs pnl" style="left:1020px;top:80px;width:250px;height:610px">
+      <div class="pnl-titel">BEZETTING</div>
+      <div id="kpi" style="padding:8px 10px 6px"></div>
+      <div class="pnl-titel">DOORVOER</div>
+      <div style="padding:6px 10px;display:grid;grid-template-columns:1fr 1fr">
+        <div><div class="label">INSLAG</div><div class="getal" id="inT">24</div></div>
+        <div><div class="label">UITSLAG</div><div class="getal" id="uitT">18</div></div>
+      </div>
+      <div class="pnl-titel">OUDSTE PRODUCT</div>
+      <div style="padding:6px 10px">
+        <div style="font-size:16px;font-weight:700" id="oudVak">Vak 104</div>
+        <div class="label" id="oudTijd" style="font-weight:400;font-size:13px">31-10 08:12</div>
+      </div>
+      <div class="pnl-titel">BEDIENING</div>
+      <div style="padding:8px 10px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="knop groot" id="btnStart"><span class="lamp" id="lStart"></span>START</div>
+        <div class="knop groot" id="btnStop"><span class="lamp" id="lStop"></span>STOP</div>
+        <div class="knop groot" id="btnReset"><span class="lamp" id="lReset"></span>RESET</div>
+        <div class="knop groot" id="btnHand"><span class="lamp" id="lHand"></span>HAND</div>
+      </div>
+      <div class="pnl-titel">LEGENDA</div>
+      <div style="padding:5px 10px;display:grid;grid-template-columns:1fr 1fr;column-gap:6px">
+        <div class="leg"><span style="background:var(--leeg)"></span>Leeg</div>
+        <div class="leg"><span style="background:var(--storing)"></span>Storing</div>
+        <div class="leg"><span style="background:var(--blauw1)"></span>Base</div>
+        <div class="leg"><span style="background:var(--blauw2)"></span>Lid</div>
+        <div class="leg"><span style="background:var(--groen1)"></span>Base</div>
+        <div class="leg"><span style="background:var(--groen2)"></span>Lid</div>
+        <div class="leg" style="grid-column:span 2"><span style="background:var(--leeg);border:3px solid var(--res)"></span>Gereserveerd</div>
+      </div>
+    </div>
+
+    <!-- statusregel -->
+    <div class="abs pnl" style="left:10px;top:700px;width:1260px;height:40px;display:flex;align-items:center;gap:24px;padding:0 12px;font-size:14px">
+      <span><span class="label">K1</span>&nbsp; <b id="pos0">X– Y–</b></span>
+      <span><span class="label">K2</span>&nbsp; <b id="pos1">X– Y–</b></span>
+      <span style="width:1px;height:24px;background:#9a9ea3"></span>
+      <span class="label">LAATSTE ACTIE</span><span id="laatste">—</span>
+    </div>
+
+    <div id="ftoetsen" class="abs">
+      <div class="knop"><small>F1</small>Fabriek</div>
+      <div class="knop actief"><small>F2</small>Magazijn</div>
+      <div class="knop"><small>F3</small>Orders</div>
+      <div class="knop"><small>F4</small>Kraan</div>
+      <div class="knop"><small>F5</small>Alarmen</div>
+      <div class="knop"><small>F6</small>Diagnose</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+// Indeling en raster gelijk aan tia-v20/README.md
+const STAP_X=52,STAP_Y=36;
+const KLEUR={0:['#E9E9E6','#8E9399'],1:['#185FA5','#fff'],2:['#85B7EB','#042C53'],3:['#3B6D11','#fff'],4:['#97C459','#042C53'],9:['#E24B4A','#fff']};
+const G=[
+ {n:'GANG BLAUW',k:'K1',top:80,t:[1,2],r:[{n:'LINKS',b:100,x0:30,y0:130},{n:'RECHTS',b:200,x0:518,y0:130}]},
+ {n:'GANG GROEN',k:'K2',top:390,t:[11,12],r:[{n:'LINKS',b:300,x0:30,y0:440},{n:'RECHTS',b:400,x0:518,y0:440}]}];
+const weergave=v=>!v.b?0:({1:1,2:2,11:3,12:4}[v.t]||9);
+let s=11;const rnd=()=>{s=(s*9301+49297)%233280;return s/233280};
+const V={},cells={};let seq=0,auto=true,alarmBevestigd=false,inT=24,uitT=18;
+const scherm=document.getElementById('scherm'),host=document.getElementById('gangen');
+const el=(cls,css,txt)=>{const d=document.createElement('div');if(cls)d.className=cls;if(css)d.style.cssText=css;if(txt!=null)d.textContent=txt;return d};
+
+G.forEach((g,gi)=>{
+  const p=el('abs pnl','left:10px;top:'+g.top+'px;width:1000px;height:300px');
+  p.innerHTML='<div class="pnl-titel"><span>'+g.n+'</span><span class="chip" style="height:20px;font-size:12px;background:#3B4148">KRAAN '+g.k+'</span><span id="st'+gi+'" style="font-weight:400">Gereed</span></div>';
+  scherm.appendChild(p);
+  g.masts=[];
+  g.r.forEach((r,ri)=>{
+    scherm.appendChild(el('abs label','left:'+r.x0+'px;top:'+(r.y0-20)+'px',r.n+'  '+(r.b+1)+' – '+(r.b+54)));
+    scherm.appendChild(el('abs stelling','left:'+(r.x0-2)+'px;top:'+(r.y0-2)+'px'));
+    for(let y=1;y<=6;y++)for(let x=1;x<=9;x++){
+      const nr=r.b+(y-1)*9+x,d=el('vak','left:'+(r.x0+(9-x)*STAP_X)+'px;top:'+(r.y0+(6-y)*STAP_Y)+'px',nr);
+      const v={b:rnd()<0.45,t:g.t[rnd()<0.5?0:1],res:false,seq:++seq};if(v.b&&rnd()<0.08)v.res=true;if(nr===137){v.b=true;v.t=0}
+      V[nr]=v;cells[nr]=d;scherm.appendChild(d);paint(nr)}
+    scherm.appendChild(el('rail','left:'+(r.x0-2)+'px;top:'+(r.y0-8)+'px;width:470px'));
+    scherm.appendChild(el('rail','left:'+(r.x0-2)+'px;top:'+(r.y0+218)+'px;width:470px'));
+    const mast=el('mast','left:'+(r.x0+8*STAP_X+23)+'px;top:'+(r.y0-4)+'px;display:'+(ri?'none':'block'));
+    const slede=el('slede','left:'+(r.x0+8*STAP_X-2)+'px;top:'+(r.y0+5*STAP_Y-2)+'px;display:'+(ri?'none':'block'));
+    scherm.appendChild(mast);scherm.appendChild(slede);g.masts.push({mast,slede,r});
+  });
+  const yb=g.top+272;
+  scherm.appendChild(el('abs label','left:30px;top:'+(yb+2)+'px','INVOER'));
+  const b1=el('band','left:90px;top:'+yb+'px;width:400px');b1.innerHTML='<div class="pallet" style="animation-delay:'+(-gi*2)+'s"></div><div class="pallet" style="animation-delay:'+(-3.5-gi*2)+'s"></div>';
+  scherm.appendChild(el('abs label','left:518px;top:'+(yb+2)+'px','UITVOER'));
+  const b2=el('band','left:588px;top:'+yb+'px;width:400px');b2.innerHTML='<div class="pallet" style="animation-delay:'+(-1-gi)+'s;animation-duration:8s"></div>';
+  scherm.appendChild(b1);scherm.appendChild(b2);g.banden=[b1,b2];
+});
+
+function paint(nr){const v=V[nr],d=cells[nr],[bg,fg]=KLEUR[weergave(v)];
+  d.style.backgroundColor=bg;d.style.color=fg;d.style.border=v.res?'3px solid #EF9F27':'1px solid #9a9ea3'}
+
+const z=n=>String(n).padStart(2,'0');
+function kpi(){
+  let h='';
+  G.forEach(g=>{let n=0;g.r.forEach(r=>{for(let i=1;i<=54;i++)if(V[r.b+i].b)n++});const pc=Math.round(n/108*100);
+    h+='<div style="display:flex;justify-content:space-between;font-weight:700"><span>'+g.n.replace('GANG ','')+'</span><span>'+pc+' %</span></div>'+
+       '<div class="balk" style="margin:3px 0 8px"><i style="width:'+pc+'%;background:'+(pc>85?'#C00':'#5E6369')+'"></i><b style="left:85%"></b></div>'});
+  document.getElementById('kpi').innerHTML=h;
+  let old=null;for(const nr in V){const v=V[nr];if(v.b&&v.t!==0&&(!old||v.seq<V[old].seq))old=nr}
+  document.getElementById('oudVak').textContent=old?'Vak '+old:'—';
+  document.getElementById('inT').textContent=inT;document.getElementById('uitT').textContent=uitT;
+  const storing=Object.values(V).some(v=>v.b&&v.t===0);
+  const a=document.getElementById('alarm');
+  a.className='abs '+(storing?'actief'+(alarmBevestigd?'':' knipper'):'rust');
+  document.getElementById('alarmTeller').textContent=storing?'1':'0';
+  if(!storing)document.getElementById('alarmTekst').textContent='Geen actieve meldingen';
+}
+function modus(){
+  document.getElementById('txtModus').textContent=auto?'AUTO':'HAND';
+  document.getElementById('ledModus').style.background=auto?'#5CE05C':'#F2C200';
+  document.getElementById('lStart').style.background=auto?'#3FCB3F':'#777';
+  document.getElementById('lStop').style.background=auto?'#777':'#E03030';
+  document.getElementById('lHand').style.background=auto?'#777':'#F2C200';
+  document.getElementById('lReset').style.background=Object.values(V).some(v=>v.b&&v.t===0)?'#5AA0E8':'#777';
+  G.forEach(g=>g.banden.forEach(b=>b.classList.toggle('stil',!auto)));
+}
+kpi();modus();
+
+function move(gi){
+  if(!auto)return;
+  const g=G[gi],ri=rnd()<0.5?0:1,M=g.masts[ri],x=1+Math.floor(rnd()*9),y=1+Math.floor(rnd()*6),nr=M.r.b+(y-1)*9+x;
+  g.masts.forEach((m,i)=>{m.mast.style.display=m.slede.style.display=i===ri?'block':'none'});
+  M.mast.style.left=(M.r.x0+(9-x)*STAP_X+23)+'px';
+  M.slede.style.left=(M.r.x0+(9-x)*STAP_X-2)+'px';M.slede.style.top=(M.r.y0+(6-y)*STAP_Y-2)+'px';
+  const inslag=!V[nr].b;
+  document.getElementById('st'+gi).innerHTML=(inslag?'▶ Inslag':'◀ Uitslag')+' → vak '+nr;
+  document.getElementById('pos'+gi).textContent='X'+x+' Y'+y+' · '+(ri?'rechts':'links');
+  setTimeout(()=>{
+    const v=V[nr];
+    if(v.t!==0||!v.b){v.b=inslag;v.res=false;if(inslag){v.t=g.t[rnd()<0.5?0:1];v.seq=++seq;inT++}else uitT++;paint(nr);kpi();
+      const d=new Date();document.getElementById('laatste').textContent=z(d.getHours())+':'+z(d.getMinutes())+':'+z(d.getSeconds())+'  '+g.k+' '+(inslag?'inslag':'uitslag')+' vak '+nr}
+    document.getElementById('st'+gi).textContent='Gereed'},1500);
+}
+setTimeout(()=>{move(0);move(1)},300);setInterval(()=>move(0),3000);setTimeout(()=>setInterval(()=>move(1),3000),1500);
+
+document.getElementById('btnStart').onclick=()=>{auto=true;modus()};
+document.getElementById('btnStop').onclick=()=>{auto=false;modus()};
+document.getElementById('btnHand').onclick=()=>{auto=false;modus()};
+document.getElementById('btnReset').onclick=()=>{for(const nr in V){if(V[nr].b&&V[nr].t===0){V[nr].b=false;paint(nr)}}kpi();modus()};
+document.getElementById('btnBevestig').onclick=()=>{alarmBevestigd=true;kpi()};
+
+setInterval(()=>{const d=new Date();document.getElementById('klok').textContent=z(d.getDate())+'-'+z(d.getMonth()+1)+'-'+d.getFullYear()+'  '+z(d.getHours())+':'+z(d.getMinutes())+':'+z(d.getSeconds())},1000);
+
+// schaal het paneel naar de beschikbare breedte
+function schaal(){const fit=document.getElementById('fit'),w=Math.min(document.body.clientWidth-32,1360),k=w/1360;
+  document.getElementById('paneel').style.transform='scale('+k+')';fit.style.width=w+'px';fit.style.height=(900*k)+'px'}
+addEventListener('resize',schaal);schaal();
+</script>
+</body>
+</html>
