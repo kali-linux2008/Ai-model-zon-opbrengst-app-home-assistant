@@ -183,14 +183,14 @@ Maak die drie in een **schermsjabloon** (Unified: *Screen* met *Screen window* v
 |---|---|---|
 | F1 | Fabriek | 4 KPI-tegels, productiestroom (lijnen → wikkelaar → scanner → verdeler → invoer → magazijn → uitvoer → docks), productie per uur, dienst, lijnsnelheid |
 | F2 | Magazijn | Stellingen, kranen, bezetting, bediening (zie hoofdstuk 3) |
-| F3 | Orders | Ordertabel met voortgang en status, knoppen Nieuw/Start/Pauze/Annuleren, orderdetail met FIFO-picklijst |
+| F3 | Orders | Orders van het MES met voortgang en status, MES-verbinding, knoppen Start/Pauze/Annuleren, orderdetail met FIFO-picklijst (zie hoofdstuk 6) |
 | F4 | Kraan | Tabs K1/K2, zijaanzicht van de actieve stelling met mast/slede/vork, rijas/hefas in mm, status, jog-knoppen, onderhoudsteller |
 | F5 | Alarmen | Tabs Actief / Historie / Bedieningslog, filter per klasse, Bevestigen / Alles bevestigen |
 | F6 | Diagnose | Tabs Systeem (Profinet-overzicht, CPU-belasting, cyclustijd), Gebruikers, Rechten |
 
 **TIA-objecten per scherm**
 - F1: mach-blokken = rechthoek + tekst + cirkel (LED, kleur via bereiklijst op een statustag). Lijnen = *Polyline*; stroom zichtbaar via knipperen of kleur op `Bediening.Auto`. Productie per uur = *Trend control* of 8 balken.
-- F3: *Parameter set control* of een eigen tabel met faceplates; ordergegevens komen uit een DB `Orders : Array[1..20] of typeOrder`.
+- F3: *Parameter set control* of een eigen tabel met faceplates; ordergegevens komen uit `"Mes".Order[1..20]` (hoofdstuk 6).
 - F4: zelfde formules als hoofdstuk 3 met vak 66 × 60 px, oorsprong (60, 190). Jog-knoppen zetten bits `Kraan[n].JogXPlus` enz.; alleen zichtbaar/bedienbaar in HAND.
 - F5: **Alarm control** (Unified) met filters op alarmklasse. Bedieningslog = **Audit trail** (Unified, optie) of een eigen tekstlog.
 - F6: *System diagnostics control* voor het Profinet-overzicht; gebruikers via *User management control*.
@@ -200,7 +200,7 @@ Maak die drie in een **schermsjabloon** (Unified: *Screen* met *Screen window* v
 | Rol | Rechten (cumulatief) |
 |---|---|
 | Gast (niet aangemeld) | Alleen bekijken |
-| Operator | Start/stop, meldingen bevestigen, orders aanmaken/starten/pauzeren |
+| Operator | Start/stop, meldingen bevestigen, orders starten/pauzeren |
 | Technicus | + handbedrijf en kraan verfahren, storing resetten, order annuleren, onderhoudsteller resetten |
 | Beheerder | + gebruikers beheren |
 
@@ -214,3 +214,55 @@ Maak die drie in een **schermsjabloon** (Unified: *Screen* met *Screen window* v
 - Knop zonder recht: in TIA verschijnt bij aantikken automatisch het aanmelddialoog,
   net als in het ontwerp.
 - Gebruikersnaam in de kopregel: systeemtag *Current user* (Unified) / *@CurrentUser* (Comfort).
+
+---
+
+## 6. Orders via het MES (OPC UA)
+
+Orders worden niet op de HMI aangemaakt maar komen uit het MES, via de
+**MES-bridge** op de laptop (`mes-bridge/`). De bridge praat met de PLC via OPC UA.
+De HMI toont de orders en mag ze alleen starten, pauzeren of (Technicus) annuleren.
+
+```
+MES → mes_bridge.py (laptop) → OPC UA → DB "Mes" → FB_Mes → kraan (FIFO-uitslag) → FC_OrderPick
+```
+
+### PLC
+| Blok | Taak |
+|---|---|
+| `typeOrder` | Nr, Klant, Soort, Aantal, Gepickt, Dock, Prio, Status |
+| DB `"Mes"` | `In` (nieuwe order + handshake), `Annuleer`, levenstekens, `MesOnline`, `Hmi` (knoppen), `Order[1..20]` |
+| `FB_Mes` (`iMes`) | handshake, validatie, levensteken/bewaking, HMI-bediening, volgende order per gang starten |
+| `FC_OrderPick` | telt een uitgeslagen pallet bij de actieve order op |
+| `FB_KraanSim` | slaat voor de actieve order het oudste pallet uit (FIFO), anders inslag |
+
+`AlarmWoord` bit 1 = **S-501 MES-verbinding verbroken** (geen levensteken gedurende 5 s).
+Maak hiervoor in de HMI een bitmelding, klasse *Errors*.
+
+### OPC UA-server instellen (TIA V20)
+1. CPU-eigenschappen → **OPC UA → Server → Algemeen**: *OPC UA-server activeren*, poort 4840.
+2. **Runtime-licenties → OPC UA**: kies de licentie die bij de CPU hoort
+   (S7-1500: SIMATIC OPC UA S7-1500 small/medium/large; S7-1200 vanaf FW 4.4: basic).
+3. **Serverinterfaces**: *Standaard SIMATIC-serverinterface* aan. De nodes heten dan
+   `ns=3;s="Mes"."In"."Nieuw"` — de bridge zoekt de namespace zelf op via
+   `http://www.siemens.com/simatic-s7-opcua`.
+4. DB `"Mes"` → per variabele de kolommen **Bereikbaar vanuit HMI/OPC UA** en
+   **Schrijfbaar vanuit HMI/OPC UA**:
+
+   | Variabele | Bereikbaar | Schrijfbaar |
+   |---|---|---|
+   | `In.*`, `Annuleer.*`, `MesLevensteken` | ✓ | ✓ |
+   | `Order[*]`, `PlcLevensteken`, `MesOnline` | ✓ | – |
+   | `Hmi.*` | ✓ (HMI) | ✓ (HMI) |
+
+5. **Beveiliging**: voor de eerste test *No security* + gasttoegang. In productie:
+   *Basic256Sha256 – Sign & Encrypt* of minimaal gebruikersauthenticatie
+   (*Gebruikers en rollen* → gebruiker met functierecht *OPC UA-toegang*) en de bridge
+   starten met `--gebruiker` / `--wachtwoord`.
+6. Netwerk: laptop in hetzelfde subnet als de PLC (of via router), poort 4840 open.
+
+### HMI-scherm Orders (F3)
+- Tabel en detail lezen `"Mes".Order[1..20]` (status 0 = verbergen).
+- Selectie in de tabel schrijft de index naar `"Mes".Hmi.Sel`.
+- START / PAUZE / ANNULEREN zetten `"Mes".Hmi.Start` / `.Pauze` / `.Annuleer` (puls, PLC zet terug).
+- Statusvak links onder en de chip **MES** in de kopregel: `"Mes".MesOnline`.

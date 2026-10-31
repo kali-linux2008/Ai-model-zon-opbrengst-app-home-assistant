@@ -11,7 +11,39 @@ VERSION : 0.1
       InTeller : DInt;   // aantal inslagen
       UitTeller : DInt;   // aantal uitslagen
       Volgnummer : DInt;   // laatst uitgegeven volgnummer
-      AlarmWoord : Word;   // bit 0 = vak met onbekend product (W-104)
+      AlarmWoord : Word;   // bit 0 = vak met onbekend product (W-104), bit 1 = MES-verbinding weg (S-501)
+   END_VAR
+
+BEGIN
+
+END_DATA_BLOCK
+
+DATA_BLOCK "Mes"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Koppeling met het MES (laptop-server) via OPC UA.
+// Zet dit DB in de OPC UA-serverinterface "MES" (zie tia-v20/README.md, hoofdstuk 6).
+   VAR RETAIN
+      In : Struct   // nieuwe order: MES schrijft Order, zet daarna Nieuw = TRUE
+         Nieuw : Bool;   // PLC zet FALSE zodra verwerkt
+         Order : "typeOrder";
+         Resultaat : Int;   // 1 ok, -1 geen vrije plaats, -2 ordernummer bestaat al, -3 ongeldige gegevens
+      END_STRUCT;
+      Annuleer : Struct   // order annuleren vanuit het MES
+         Nieuw : Bool;
+         Nr : String[20];
+         Resultaat : Int;   // 1 ok, -4 order niet gevonden of niet meer actief
+      END_STRUCT;
+      MesLevensteken : Int;   // MES verhoogt elke seconde
+      PlcLevensteken : Int;   // PLC verhoogt elke seconde
+      MesOnline : Bool;   // FALSE als MesLevensteken 5 s niet verandert
+      Hmi : Struct   // bediening vanaf het HMI-scherm Orders
+         Sel : Int;   // geselecteerde order (index 1..20)
+         Start : Bool;   // puls
+         Pauze : Bool;   // puls
+         Annuleer : Bool;   // puls
+      END_STRUCT;
+      Order : Array[1..20] of "typeOrder";   // orderlijst; MES en HMI lezen hieruit
    END_VAR
 
 BEGIN

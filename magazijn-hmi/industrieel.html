@@ -176,7 +176,8 @@ body{background:#121417;min-height:100vh;padding:16px;font-family:var(--font);ov
       <span class="titel"><span id="kopIcoon"></span>MAGAZIJN <em id="kopScherm">· OVERZICHT</em></span>
       <span style="flex:1"></span>
       <span class="chip"><span class="led" id="ledModus"></span><span id="txtModus">AUTO</span></span>
-      <span class="chip"><span class="led" style="background:#5CE05C;color:#5CE05C"></span>PLC ONLINE</span>
+      <span class="chip"><span class="led" style="background:#5CE05C;color:#5CE05C"></span>PLC</span>
+      <span class="chip" title="MES-server (laptop) via OPC UA"><span class="led" id="ledMes"></span>MES</span>
       <span class="chip" id="chipUser"></span>
       <span id="klok">--</span>
     </div>
@@ -256,7 +257,7 @@ const RECHTEN=[
   ['bekijken','Schermen bekijken',0],
   ['bedienen','Installatie starten / stoppen',1],
   ['alarm','Meldingen bevestigen',1],
-  ['orders','Orders aanmaken, starten, pauzeren',1],
+  ['orders','Orders starten / pauzeren (orders komen uit het MES)',1],
   ['hand','Handbedrijf, kraan verfahren',2],
   ['reset','Storingen resetten',2],
   ['annuleren','Order annuleren',2],
@@ -299,15 +300,22 @@ const K=[
  {gi:1,naam:'K2',ri:0,cx:1,cy:1,tx:1,ty:1,fase:'gereed',job:null,next:1500,cycli:39877,svc:2877,km:1102.9,vx:0,vy:0}];
 
 let orders=[
- {nr:'ORD-4711',klant:'Klant Noord',p:1,aantal:12,gepickt:7,dock:1,prio:'Hoog',status:'Bezig',door:'Operator 1',tijd:'07:42'},
- {nr:'ORD-4712',klant:'Klant Zuid',p:12,aantal:8,gepickt:2,dock:2,prio:'Normaal',status:'Bezig',door:'Operator 1',tijd:'08:10'},
- {nr:'ORD-4713',klant:'Klant West',p:2,aantal:10,gepickt:0,dock:1,prio:'Normaal',status:'Wachtend',door:'Operator 2',tijd:'09:31'},
- {nr:'ORD-4714',klant:'Klant Oost',p:11,aantal:6,gepickt:0,dock:2,prio:'Laag',status:'Wachtend',door:'Operator 1',tijd:'10:05'},
- {nr:'ORD-4710',klant:'Klant Noord',p:11,aantal:9,gepickt:9,dock:2,prio:'Normaal',status:'Gereed',door:'Operator 2',tijd:'06:20'},
- {nr:'ORD-4709',klant:'Klant Midden',p:1,aantal:15,gepickt:15,dock:1,prio:'Hoog',status:'Gereed',door:'Operator 2',tijd:'05:48'}];
+ {nr:'ORD-4711',klant:'Klant Noord',p:1,aantal:12,gepickt:7,dock:1,prio:'Hoog',status:'Bezig',door:'MES',tijd:'07:42'},
+ {nr:'ORD-4712',klant:'Klant Zuid',p:12,aantal:8,gepickt:2,dock:2,prio:'Normaal',status:'Bezig',door:'MES',tijd:'08:10'},
+ {nr:'ORD-4713',klant:'Klant West',p:2,aantal:10,gepickt:0,dock:1,prio:'Normaal',status:'Wachtend',door:'MES',tijd:'09:31'},
+ {nr:'ORD-4714',klant:'Klant Oost',p:11,aantal:6,gepickt:0,dock:2,prio:'Laag',status:'Wachtend',door:'MES',tijd:'10:05'},
+ {nr:'ORD-4710',klant:'Klant Noord',p:11,aantal:9,gepickt:9,dock:2,prio:'Normaal',status:'Gereed',door:'MES',tijd:'06:20'},
+ {nr:'ORD-4709',klant:'Klant Midden',p:1,aantal:15,gepickt:15,dock:1,prio:'Hoog',status:'Gereed',door:'MES',tijd:'05:48'}];
 let orderNr=4715,orderSel='ORD-4711';
 function orderPick(t){const o=orders.find(o=>o.status==='Bezig'&&o.p===t);if(!o)return;o.gepickt++;
-  if(o.gepickt>=o.aantal){o.status='Gereed';const w=orders.find(o=>o.status==='Wachtend');if(w)w.status='Bezig'}}
+  if(o.gepickt>=o.aantal)o.status='Gereed';orderActiveren()}
+const gangVan=p=>p<10?1:2;
+let mesOnline=true,mesLeven=0,mesVandaag=6,mesVolgende=Date.now()+25000;
+function orderActiveren(){[1,2].forEach(g=>{const lijst=orders.filter(o=>gangVan(o.p)===g);
+  if(lijst.some(o=>o.status==='Bezig'))return;const w=lijst.filter(o=>o.status==='Wachtend').sort((a,b)=>({Hoog:1,Normaal:2,Laag:3}[a.prio])-({Hoog:1,Normaal:2,Laag:3}[b.prio]))[0];if(w)w.status='Bezig'})}
+function mesOrder(){const ps=[1,2,11,12],pp=ps[Math.floor(rnd()*4)],nr='ORD-'+(orderNr++);
+  orders.unshift({nr,klant:['Klant Noord','Klant Zuid','Klant West','Klant Oost'][Math.floor(rnd()*4)],p:pp,aantal:4+Math.floor(rnd()*10),gepickt:0,dock:pp<10?1:2,prio:rnd()<.2?'Hoog':'Normaal',status:'Wachtend',door:'MES',tijd:tijd(new Date()).slice(0,5)});
+  mesVandaag++;logboek.unshift({tijd:new Date(),wie:'MES',t:'Order '+nr+' ontvangen'});orderActiveren();toast('Nieuwe order '+nr+' ontvangen van MES',true)}
 
 /* meldingen */
 const KLASSE={S:['STORING','#D93636','#fff'],W:['WAARSCHUWING','#F2C200','#000'],I:['INFO','#2A71B8','#fff']};
@@ -320,7 +328,8 @@ const isActief=a=>!(a.gaat&&a.bev);
 function bevestig(a){if(a&&!a.bev){a.bev=new Date();a.door=user?user.naam:'';log('Melding '+a.id+' bevestigd')}}
 [['S-301','S','Noodstop gang groen bediend',[6,41,10],[6,44,2],[6,43,30],'Technicus'],
  ['W-221','W','Kraan K2 — vorksensor vervuild',[8,5,12],[8,6,40],[8,5,50],'Operator 1'],
- ['S-118','S','Kraan K1 — rijas positiefout',[9,12,3],[9,20,44],[9,13,1],'Technicus']]
+ ['S-118','S','Kraan K1 — rijas positiefout',[9,12,3],[9,20,44],[9,13,1],'Technicus'],
+ ['S-501','S','MES-verbinding verbroken (geen levensteken)',[7,10,5],[7,12,40],[7,11,2],'Operator 1']]
  .forEach(([id,k,t,a,b,c,w])=>alarms.push({key:++alarmKey,id,k,tekst:t,komt:vandaag(...a),gaat:vandaag(...b),bev:vandaag(...c),door:w}));
 alarmKomt('I-212','I','Wikkelaar — folierol bijna leeg (8 %)',new Date(Date.now()-300000));
 alarmKomt('W-104','W','Vak 137 — product onbekend (Soort 0)',new Date(Date.now()-90000));
@@ -451,22 +460,23 @@ function verversFabriek(){const a=auto(),lp=a?'loopt':'stil';verdeler^=1;
 /* ===================== F3 ORDERS ===================== */
 const STATUS={Bezig:['#2A71B8','#fff'],Wachtend:['#C3C7CB','#1A1D20'],Gepauzeerd:['#F2C200','#000'],Gereed:['#3B6D11','#fff'],Geannuleerd:['#80868C','#fff']};
 function bouwOrders(){const S=$('scr3');
-  const p=pnl(S,10,80,860,660,'ORDERS<span class="r" id="oTeller" style="font-weight:500"></span>');
+  const p=pnl(S,10,80,860,660,'ORDERS — VAN MES<span class="r" id="oTeller" style="font-weight:500"></span>');
   el('div','',`height:556px;overflow:auto`,'<table class="tbl"><thead><tr><th>ORDER</th><th>KLANT</th><th>PRODUCT</th><th style="width:190px">VOORTGANG</th><th>DOCK</th><th>PRIO</th><th>STATUS</th></tr></thead><tbody id="oBody"></tbody></table>',p);
   const b=el('div','',`position:absolute;left:10px;right:10px;bottom:10px;display:flex;gap:10px`,'',p);
-  [['plus','NIEUWE ORDER','orders',()=>{const ps=[1,2,11,12],pp=ps[Math.floor(rnd()*4)],nr='ORD-'+(orderNr++);
-      orders.unshift({nr,klant:['Klant Noord','Klant Zuid','Klant West','Klant Oost'][Math.floor(rnd()*4)],p:pp,aantal:4+Math.floor(rnd()*10),gepickt:0,dock:pp<10?1:2,prio:'Normaal',status:'Wachtend',door:user.naam,tijd:tijd(new Date()).slice(0,5)});
-      orderSel=nr;log('Order '+nr+' aangemaakt');toast(nr+' aangemaakt',true)}],
-   ['play','START','orders',()=>zetOrder(['Wachtend','Gepauzeerd'],'Bezig','gestart')],
+  el('div','',`flex:1.3;height:50px;display:flex;align-items:center;gap:10px;padding:0 12px;border:1px dashed #8E949A;border-radius:3px;font-size:14px;color:var(--tekst2);background:#EEF0F1`,
+     `<span class="led" id="oMesLed"></span><span id="oMesTekst"></span>`,b);
+  [['play','START','orders',()=>zetOrder(['Wachtend','Gepauzeerd'],'Bezig','gestart')],
    ['pauze','PAUZE','orders',()=>zetOrder(['Bezig'],'Gepauzeerd','gepauzeerd')],
-   ['x','ANNULEREN','annuleren',()=>zetOrder(['Wachtend','Gepauzeerd','Bezig'],'Geannuleerd','geannuleerd')]]
+   ['x','ANNULEREN','annuleren',()=>{zetOrder(['Wachtend','Gepauzeerd','Bezig'],'Geannuleerd','geannuleerd');orderActiveren()}]]
    .forEach(([i,t,r,fn])=>actie(el('div','knop','height:50px;flex:1',ic(i,18)+t,b),r,()=>{fn();ververs()}));
   pnl(S,880,80,390,660,'ORDERDETAIL').innerHTML+=`<div id="oDetail" style="padding:12px"></div>`;
 }
 function zetOrder(van,naar,woord){const o=orders.find(o=>o.nr===orderSel);if(!o)return;
   if(!van.includes(o.status)){toast('Order '+o.nr+' is '+o.status.toLowerCase());return}o.status=naar;log('Order '+o.nr+' '+woord)}
 function verversOrders(){
-  $('oTeller').textContent=orders.filter(o=>o.status==='Bezig').length+' bezig · '+orders.filter(o=>o.status==='Wachtend').length+' wachtend';
+  $('oTeller').textContent=orders.filter(o=>o.status==='Bezig').length+' bezig · '+orders.filter(o=>o.status==='Wachtend').length+' wachtend · '+mesVandaag+' ontvangen vandaag';
+  $('oMesLed').style.background=$('oMesLed').style.color=mesOnline?'#3FC24A':'#D93636';
+  $('oMesTekst').innerHTML=mesOnline?'<b style="color:var(--tekst)">MES verbonden</b> · nieuwe orders komen automatisch binnen':'<b style="color:#B00">MES offline</b> · geen nieuwe orders';
   $('oBody').innerHTML=orders.map(o=>{const [bg,fg]=STATUS[o.status],pc=Math.round(o.gepickt/o.aantal*100);
     return `<tr data-nr="${o.nr}" class="${o.nr===orderSel?'sel':''}"><td><b>${o.nr}</b></td><td>${o.klant}</td>
      <td><span style="display:inline-flex;align-items:center;gap:8px"><i style="width:14px;height:14px;background:${PROD[o.p][1]};border-radius:2px;display:inline-block"></i>${PROD[o.p][0]}</span></td>
@@ -474,7 +484,7 @@ function verversOrders(){
      <td>${o.dock}</td><td>${o.prio==='Hoog'?'<b style="color:#B00">Hoog</b>':o.prio}</td><td><span class="st" style="background:${bg};color:${fg}">${o.status.toUpperCase()}</span></td></tr>`}).join('');
   const o=orders.find(o=>o.nr===orderSel);if(!o){$('oDetail').innerHTML='';return}
   const vakken=Object.keys(V).filter(nr=>V[nr].b&&V[nr].t===o.p).sort((a,b)=>V[a].seq-V[b].seq).slice(0,6);
-  $('oDetail').innerHTML=`<div style="font:700 30px var(--cond)">${o.nr}</div><div style="color:var(--tekst2);margin-bottom:10px">${o.klant} · aangemaakt ${o.tijd} door ${o.door}</div>
+  $('oDetail').innerHTML=`<div style="font:700 30px var(--cond)">${o.nr}</div><div style="color:var(--tekst2);margin-bottom:10px">${o.klant} · ontvangen van MES om ${o.tijd}</div>
     <div class="rij" style="padding:0"><span class="label">PRODUCT</span><span class="waarde">${PROD[o.p][0]}</span></div>
     <div class="rij" style="padding:0"><span class="label">AANTAL</span><span class="waarde">${o.gepickt} van ${o.aantal} pallets</span></div>
     <div class="rij" style="padding:0"><span class="label">DOCK</span><span class="waarde">Dock ${o.dock}</span></div>
@@ -571,13 +581,13 @@ function bouwDiagnose(){const S=$('scr6');
   const sys=el('div','','','',S);sys.id='d_systeem';
   pnl(sys,10,124,800,616,'NETWERK — PROFINET');
   const nodes=[['PLC','PLC · MAGAZIJN',40,190,'ok'],['HMI','HMI-PANEEL 12"',40,300,'ok'],['SW','SWITCH',320,245,'ok'],['LP1','LIJN-PLC 1',40,430,'ok'],['LP2','LIJN-PLC 2',40,540,'ok'],
-    ['IO1','I/O GANG BLAUW',580,160,'ok'],['IO2','I/O GANG GROEN',580,250,'ok'],['FK1','AANDRIJVING K1',580,340,'ok'],['FK2','AANDRIJVING K2',580,430,'ok'],['SCN','SCANNER INVOER',580,520,'W']];
+    ['MES','MES-SERVER (LAPTOP)',320,590,'ok'],['IO1','I/O GANG BLAUW',580,160,'ok'],['IO2','I/O GANG GROEN',580,250,'ok'],['FK1','AANDRIJVING K1',580,340,'ok'],['FK2','AANDRIJVING K2',580,430,'ok'],['SCN','SCANNER INVOER',580,520,'W']];
   const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('width',1280);svg.setAttribute('height',800);svg.style.cssText='position:absolute;left:0;top:0;pointer-events:none';
-  svg.innerHTML=nodes.filter(n=>n[0]!=='SW').map(n=>{const sx=410,sy=272,nx=n[2]+(n[2]<300?190:0),ny=n[3]+27;return `<polyline points="${nx},${ny} ${(sx+nx)/2},${ny} ${(sx+nx)/2},${sy} ${sx},${sy}" fill="none" stroke="#2E8B57" stroke-width="3"/>`}).join('');
+  svg.innerHTML='<polyline points="415,299 415,590" fill="none" stroke="#2E8B57" stroke-width="3" stroke-dasharray="8 4"/>'+nodes.filter(n=>n[0]!=='SW'&&n[0]!=='MES').map(n=>{const sx=410,sy=272,nx=n[2]+(n[2]<300?190:0),ny=n[3]+27;return `<polyline points="${nx},${ny} ${(sx+nx)/2},${ny} ${(sx+nx)/2},${sy} ${sx},${sy}" fill="none" stroke="#2E8B57" stroke-width="3"/>`}).join('');
   sys.appendChild(svg);
   nodes.forEach(([id,n,x,y,st])=>el('div','mach',`left:${x}px;top:${y}px;width:190px;height:54px`,`<div class="h"><span class="led" style="background:${st==='ok'?'#3FC24A':'#F2C200'};color:${st==='ok'?'#3FC24A':'#F2C200'}"></span>${n}</div><div class="v" style="font-size:14px;padding:4px 8px" id="dn${id}"></div>`,sys));
-  el('div','abs','left:30px;top:640px;width:760px;display:flex;gap:22px;font-size:14px',
-    '<span><span class="led" style="display:inline-block;background:#3FC24A;color:#3FC24A"></span> OK</span><span><span class="led" style="display:inline-block;background:#F2C200;color:#F2C200"></span> Waarschuwing</span><span><span class="led" style="display:inline-block;background:#D93636;color:#D93636"></span> Storing / geen verbinding</span><span style="color:var(--tekst2)">Lijn groen = verbinding actief</span>',sys);
+  el('div','abs','left:30px;top:700px;width:760px;display:flex;gap:22px;font-size:14px',
+    '<span style="color:var(--tekst2)">Gestreept = OPC UA (MES)</span><span><span class="led" style="display:inline-block;background:#3FC24A;color:#3FC24A"></span> OK</span><span><span class="led" style="display:inline-block;background:#F2C200;color:#F2C200"></span> Waarschuwing</span><span><span class="led" style="display:inline-block;background:#D93636;color:#D93636"></span> Storing / geen verbinding</span><span style="color:var(--tekst2)">Lijn groen = verbinding actief</span>',sys);
   pnl(sys,820,124,450,616,'PLC').innerHTML+=`<div id="dPlc" style="padding:6px 0"></div>`;
 
   const gb=el('div','','display:none','',S);gb.id='d_gebruikers';
@@ -599,11 +609,11 @@ function bouwDiagnose(){const S=$('scr6');
 function verversDiagnose(){
   cpu=Math.max(14,Math.min(38,cpu+(rnd()-.5)*4));cyc=Math.max(3.2,Math.min(8.5,cyc+(rnd()-.5)*.6));
   const dn={PLC:'Cyclus '+cyc.toFixed(1).replace('.',',')+' ms',HMI:user?user.naam:'Niet aangemeld',SW:'10 poorten · 100 Mbit',LP1:'Lijn 1 RUN',LP2:'Lijn 2 RUN',IO1:'32 DI · 16 DQ OK',IO2:'32 DI · 16 DQ OK',
-    FK1:K[0].vx.toFixed(1).replace('.',',')+' m/s',FK2:K[1].vx.toFixed(1).replace('.',',')+' m/s',SCN:'Leesfouten 0,8 %'};
+    FK1:K[0].vx.toFixed(1).replace('.',',')+' m/s',FK2:K[1].vx.toFixed(1).replace('.',',')+' m/s',SCN:'Leesfouten 0,8 %',MES:'OPC UA · leven '+mesLeven};
   for(const k in dn)$('dn'+k).textContent=dn[k];
   $('dPlc').innerHTML=`<div style="padding:4px 12px 10px"><div style="display:flex;justify-content:space-between" class="label"><span>CPU-BELASTING</span><b style="color:var(--tekst)">${Math.round(cpu)} %</b></div><div class="balk" style="height:20px;margin-top:4px"><i style="width:${cpu}%;background:#3B6D11"></i></div></div>`+
     [['BEDRIJFSTOESTAND','RUN'],['CYCLUSTIJD ACT','<span style="font-variant-numeric:tabular-nums">'+cyc.toFixed(1).replace('.',',')+' ms</span>'],['CYCLUSTIJD MIN / MAX','3,1 / 12,4 ms'],['GEHEUGEN WERK','41 %'],['GEHEUGEN LAAD','18 %'],
-     ['BEDRIJFSUREN','18.204 h'],['LAATSTE DOWNLOAD','14-10-2026 16:22'],['HMI-VERBINDINGEN','2 / 8'],['PROFINET-APPARATEN','10 / 10 bereikbaar']]
+     ['BEDRIJFSUREN','18.204 h'],['LAATSTE DOWNLOAD','14-10-2026 16:22'],['HMI-VERBINDINGEN','2 / 8'],['OPC UA-CLIENTS','1 (MES-bridge)'],['MES-LEVENSTEKEN',mesLeven],['PROFINET-APPARATEN','10 / 10 bereikbaar']]
     .map(([a,b])=>`<div class="rij"><span class="label">${a}</span><span class="waarde">${b}</span></div>`).join('');
   $('uBody').innerHTML=users.map((u,i)=>`<tr data-u="${i}" class="${i===uSel?'sel':''}"><td><b>${u.naam}</b>${u===user?' <span class="st" style="background:#2A71B8;color:#fff;height:20px">AANGEMELD</span>':''}</td><td>${u.rol}</td>
     <td>${u.actief?'<span class="st" style="background:#3B6D11;color:#fff">ACTIEF</span>':'<span class="st" style="background:#80868C;color:#fff">GEBLOKKEERD</span>'}</td><td>${u.laatst}</td><td style="letter-spacing:3px">••••</td></tr>`).join('');
@@ -646,6 +656,7 @@ function bouwFrame(){
 }
 let alarmRegel=null;
 function verversKop(){
+  $('ledMes').style.background=$('ledMes').style.color=mesOnline?'#5CE05C':'#E03030';
   const kl={AUTO:'#5CE05C',STOP:'#E03030',HAND:'#F2C200'}[modus];$('ledModus').style.background=kl;$('ledModus').style.color=kl;$('txtModus').textContent=modus;
   const act=alarms.filter(isActief).sort((a,b)=>(!!a.bev-!!b.bev)||('SWI'.indexOf(a.k)-'SWI'.indexOf(b.k))||(b.komt-a.komt));
   alarmRegel=act[0]||null;const e=$('alarm');
@@ -668,6 +679,8 @@ setInterval(()=>{const now=Date.now();
   if(!storing&&alarmLoopt('W-104'))alarmGaat('W-104');
   if(now>w221Volgende&&!alarmLoopt('W-221')){alarmKomt('W-221','W','Kraan K2 — vorksensor vervuild');w221Gaat=now+15000;w221Volgende=now+60000}
   if(w221Gaat&&now>w221Gaat){alarmGaat('W-221');w221Gaat=0}
+  if(now%1000<500)mesLeven=(mesLeven+1)%30000;
+  if(now>mesVolgende){mesOrder();mesVolgende=now+40000}
   ververs()},500);
 setInterval(()=>{const d=new Date();$('klok').textContent=z(d.getDate())+'-'+z(d.getMonth()+1)+'-'+d.getFullYear()+'  '+tijd(d);
   if(user){idle++;if(idle>=LOGOFF)afmelden('Automatisch afgemeld (inactief)')}},1000);

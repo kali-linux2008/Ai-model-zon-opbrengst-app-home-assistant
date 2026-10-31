@@ -122,11 +122,182 @@ BEGIN
 	"Magazijn".UitTeller := 0;
 END_FUNCTION
 
+FUNCTION "FC_OrderPick" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Meldt een uitgeslagen pallet van een soort aan de eerste actieve order met die soort.
+   VAR_INPUT
+      Soort : Int;
+   END_VAR
+
+   VAR_TEMP
+      i : Int;
+   END_VAR
+
+BEGIN
+	FOR #i := 1 TO 20 DO
+	    IF "Mes".Order[#i].Status = 2 AND "Mes".Order[#i].Soort = #Soort THEN
+	        "Mes".Order[#i].Gepickt := "Mes".Order[#i].Gepickt + 1;
+	        IF "Mes".Order[#i].Gepickt >= "Mes".Order[#i].Aantal THEN
+	            "Mes".Order[#i].Status := 4;   // gereed
+	        END_IF;
+	        RETURN;
+	    END_IF;
+	END_FOR;
+END_FUNCTION
+
+FUNCTION_BLOCK "FB_Mes"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Koppeling met het MES:
+//  - levensteken in beide richtingen, MesOnline + alarm S-501
+//  - nieuwe orders en annuleringen via handshake (Nieuw-bit)
+//  - bediening vanaf de HMI (start / pauze / annuleren)
+//  - per gang automatisch de volgende wachtende order starten (laagste Prio eerst)
+   VAR
+      tPuls {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      tWatchdog {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      VorigLevensteken : Int;
+   END_VAR
+
+   VAR_TEMP
+      i : Int;
+      g : Int;
+      og : Int;
+      vrij : Int;
+      best : Int;
+      s : Int;
+      dubbel : Bool;
+      bezig : Bool;
+   END_VAR
+
+BEGIN
+	// --- Levensteken PLC -> MES (1 s) --------------------------------
+	#tPuls(IN := NOT #tPuls.Q, PT := T#1S);
+	IF #tPuls.Q THEN
+	    IF "Mes".PlcLevensteken >= 30000 THEN
+	        "Mes".PlcLevensteken := 0;
+	    ELSE
+	        "Mes".PlcLevensteken := "Mes".PlcLevensteken + 1;
+	    END_IF;
+	END_IF;
+
+	// --- Bewaking MES -> PLC: 5 s geen verandering = offline ----------
+	#tWatchdog(IN := "Mes".MesLevensteken = #VorigLevensteken, PT := T#5S);
+	#VorigLevensteken := "Mes".MesLevensteken;
+	"Mes".MesOnline := NOT #tWatchdog.Q;
+	"Magazijn".AlarmWoord.%X1 := NOT "Mes".MesOnline;
+
+	// --- Nieuwe order van het MES -------------------------------------
+	IF "Mes".In.Nieuw THEN
+	    #vrij := 0;
+	    #dubbel := FALSE;
+	    FOR #i := 1 TO 20 DO
+	        IF "Mes".Order[#i].Status <> 0 AND "Mes".Order[#i].Nr = "Mes".In.Order.Nr THEN
+	            #dubbel := TRUE;
+	        END_IF;
+	        IF #vrij = 0 AND "Mes".Order[#i].Status = 0 THEN
+	            #vrij := #i;
+	        END_IF;
+	    END_FOR;
+	    // Lijst vol: plaats van een afgeronde order hergebruiken
+	    IF #vrij = 0 THEN
+	        FOR #i := 1 TO 20 DO
+	            IF #vrij = 0 AND "Mes".Order[#i].Status >= 4 THEN
+	                #vrij := #i;
+	            END_IF;
+	        END_FOR;
+	    END_IF;
+
+	    #s := "Mes".In.Order.Soort;
+	    IF NOT (#s = 1 OR #s = 2 OR #s = 11 OR #s = 12)
+	        OR "Mes".In.Order.Aantal <= 0
+	        OR "Mes".In.Order.Nr = ''
+	    THEN
+	        "Mes".In.Resultaat := -3;
+	    ELSIF #dubbel THEN
+	        "Mes".In.Resultaat := -2;
+	    ELSIF #vrij = 0 THEN
+	        "Mes".In.Resultaat := -1;
+	    ELSE
+	        "Mes".Order[#vrij] := "Mes".In.Order;
+	        "Mes".Order[#vrij].Gepickt := 0;
+	        "Mes".Order[#vrij].Status := 1;   // wachtend
+	        IF "Mes".Order[#vrij].Prio < 1 OR "Mes".Order[#vrij].Prio > 3 THEN
+	            "Mes".Order[#vrij].Prio := 2;
+	        END_IF;
+	        "Mes".In.Resultaat := 1;
+	    END_IF;
+	    "Mes".In.Nieuw := FALSE;
+	END_IF;
+
+	// --- Annuleren vanuit het MES -------------------------------------
+	IF "Mes".Annuleer.Nieuw THEN
+	    "Mes".Annuleer.Resultaat := -4;
+	    FOR #i := 1 TO 20 DO
+	        IF "Mes".Order[#i].Status >= 1 AND "Mes".Order[#i].Status <= 3
+	            AND "Mes".Order[#i].Nr = "Mes".Annuleer.Nr
+	        THEN
+	            "Mes".Order[#i].Status := 5;
+	            "Mes".Annuleer.Resultaat := 1;
+	        END_IF;
+	    END_FOR;
+	    "Mes".Annuleer.Nieuw := FALSE;
+	END_IF;
+
+	// --- Bediening vanaf de HMI ---------------------------------------
+	#i := "Mes".Hmi.Sel;
+	IF #i >= 1 AND #i <= 20 THEN
+	    IF "Mes".Hmi.Start AND ("Mes".Order[#i].Status = 1 OR "Mes".Order[#i].Status = 3) THEN
+	        "Mes".Order[#i].Status := 2;
+	    END_IF;
+	    IF "Mes".Hmi.Pauze AND "Mes".Order[#i].Status = 2 THEN
+	        "Mes".Order[#i].Status := 3;
+	    END_IF;
+	    IF "Mes".Hmi.Annuleer AND "Mes".Order[#i].Status >= 1 AND "Mes".Order[#i].Status <= 3 THEN
+	        "Mes".Order[#i].Status := 5;
+	    END_IF;
+	END_IF;
+	"Mes".Hmi.Start := FALSE;
+	"Mes".Hmi.Pauze := FALSE;
+	"Mes".Hmi.Annuleer := FALSE;
+
+	// --- Per gang de volgende wachtende order starten -----------------
+	FOR #g := 1 TO 2 DO
+	    #bezig := FALSE;
+	    #best := 0;
+	    FOR #i := 1 TO 20 DO
+	        IF "Mes".Order[#i].Soort < 10 THEN
+	            #og := 1;
+	        ELSE
+	            #og := 2;
+	        END_IF;
+	        IF #og = #g THEN
+	            IF "Mes".Order[#i].Status = 2 THEN
+	                #bezig := TRUE;
+	            ELSIF "Mes".Order[#i].Status = 1 THEN
+	                IF #best = 0 THEN
+	                    #best := #i;
+	                ELSIF "Mes".Order[#i].Prio < "Mes".Order[#best].Prio THEN
+	                    #best := #i;
+	                END_IF;
+	            END_IF;
+	        END_IF;
+	    END_FOR;
+	    IF NOT #bezig AND #best > 0 THEN
+	        "Mes".Order[#best].Status := 2;
+	    END_IF;
+	END_FOR;
+
+END_FUNCTION_BLOCK
+
 FUNCTION_BLOCK "FB_KraanSim"
 { S7_Optimized_Access := 'TRUE' }
 VERSION : 0.1
 // Simulatie van een stapelkraan voor test in PLCSIM.
-// Kiest elke 3 s een willekeurig vak in de eigen gang: leeg -> inslag, bezet -> uitslag.
+// Elke 3 s een opdracht in de eigen gang:
+//  1. is er een actieve order (Status 2) voor deze gang -> uitslag van het oudste vak (FIFO);
+//  2. anders inslag in een willekeurig leeg vak.
 // In een echte installatie vervang je dit blok door de kraanbesturing,
 // die dezelfde velden in "Magazijn".Kraan[] en "Magazijn".Vak[] bijwerkt.
    VAR_INPUT
@@ -149,6 +320,13 @@ VERSION : 0.1
       y : Int;
       nu : DTL;
       ret : Int;
+      o : Int;
+      og : Int;
+      st : Int;
+      i : Int;
+      soort : Int;
+      bestNr : DInt;
+      kandStel : Int;
    END_VAR
 
 BEGIN
@@ -162,15 +340,52 @@ BEGIN
 	         PT := T#3S);
 
 	IF #tCyclus.Q THEN
-	    #Rnd := (#Rnd * 75 + 74) MOD 65537;
-	    #Stel := (#Gang - 1) * 2 + 1 + DINT_TO_INT(#Rnd MOD 2);
-	    #Rnd := (#Rnd * 75 + 74) MOD 65537;
-	    #x := 1 + DINT_TO_INT(#Rnd MOD 9);
-	    #Rnd := (#Rnd * 75 + 74) MOD 65537;
-	    #y := 1 + DINT_TO_INT(#Rnd MOD 6);
-	    #Idx := (#y - 1) * 9 + #x;
-	    #Inslag := NOT "Magazijn".Vak[#Stel, #Idx].Bezet;
-
+	    #Stel := 0;
+	    
+	    // 1. Uitslag voor een actieve order van deze gang (oudste pallet eerst)
+	    FOR #o := 1 TO 20 DO
+	        IF "Mes".Order[#o].Soort < 10 THEN
+	            #og := 1;
+	        ELSE
+	            #og := 2;
+	        END_IF;
+	        IF #Stel = 0 AND "Mes".Order[#o].Status = 2 AND #og = #Gang THEN
+	            #soort := "Mes".Order[#o].Soort;
+	            #bestNr := 0;
+	            FOR #st := (#Gang - 1) * 2 + 1 TO (#Gang - 1) * 2 + 2 DO
+	                FOR #i := 1 TO 54 DO
+	                    IF "Magazijn".Vak[#st, #i].Bezet AND "Magazijn".Vak[#st, #i].Soort = #soort
+	                        AND (#bestNr = 0 OR "Magazijn".Vak[#st, #i].Volgnummer < #bestNr)
+	                    THEN
+	                        #bestNr := "Magazijn".Vak[#st, #i].Volgnummer;
+	                        #Stel := #st;
+	                        #Idx := #i;
+	                    END_IF;
+	                END_FOR;
+	            END_FOR;
+	            #Inslag := FALSE;
+	        END_IF;
+	    END_FOR;
+	    
+	    // 2. Anders inslag in een willekeurig leeg vak (bezet = deze ronde niets doen)
+	    IF #Stel = 0 THEN
+	        #Rnd := (#Rnd * 75 + 74) MOD 65537;
+	        #kandStel := (#Gang - 1) * 2 + 1 + DINT_TO_INT(#Rnd MOD 2);
+	        #Rnd := (#Rnd * 75 + 74) MOD 65537;
+	        #x := 1 + DINT_TO_INT(#Rnd MOD 9);
+	        #Rnd := (#Rnd * 75 + 74) MOD 65537;
+	        #y := 1 + DINT_TO_INT(#Rnd MOD 6);
+	        IF NOT "Magazijn".Vak[#kandStel, (#y - 1) * 9 + #x].Bezet THEN
+	            #Stel := #kandStel;
+	            #Idx := (#y - 1) * 9 + #x;
+	            #Inslag := TRUE;
+	        END_IF;
+	    END_IF;
+	END_IF;
+	
+	IF #tCyclus.Q AND #Stel > 0 THEN
+	    #x := (#Idx - 1) MOD 9 + 1;
+	    #y := (#Idx - 1) / 9 + 1;
 	    "Magazijn".Kraan[#Gang].Stelling := #Stel - (#Gang - 1) * 2 - 1;
 	    "Magazijn".Kraan[#Gang].X := #x;
 	    "Magazijn".Kraan[#Gang].Y := #y;
@@ -199,7 +414,8 @@ BEGIN
 	            #ret := RD_LOC_T(#nu);
 	            "Magazijn".Vak[#Stel, #Idx].Inslagtijd := #nu;
 	            "Magazijn".InTeller := "Magazijn".InTeller + 1;
-	        ELSE
+	        ELSIF "Magazijn".Vak[#Stel, #Idx].Bezet THEN
+	            "FC_OrderPick"(Soort := "Magazijn".Vak[#Stel, #Idx].Soort);
 	            "Magazijn".Vak[#Stel, #Idx].Bezet := FALSE;
 	            "Magazijn".UitTeller := "Magazijn".UitTeller + 1;
 	        END_IF;

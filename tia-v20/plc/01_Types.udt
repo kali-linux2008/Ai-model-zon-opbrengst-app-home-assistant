@@ -23,6 +23,21 @@ VERSION : 0.1
 
 END_TYPE
 
+TYPE "typeOrder"
+VERSION : 0.1
+   STRUCT
+      Nr : String[20];   // ordernummer uit het MES, uniek
+      Klant : String[30];
+      Soort : Int;   // product: 1 Base blauw, 2 Lid blauw, 11 Base groen, 12 Lid groen
+      Aantal : Int;   // te leveren pallets
+      Gepickt : Int;   // al uitgeslagen pallets (PLC)
+      Dock : Int;   // 1 of 2
+      Prio : Int;   // 1 = hoog, 2 = normaal, 3 = laag
+      Status : Int;   // 0 vrij, 1 wachtend, 2 bezig, 3 gepauzeerd, 4 gereed, 5 geannuleerd
+   END_STRUCT;
+
+END_TYPE
+
 TYPE "typeBediening"
 VERSION : 0.1
    STRUCT

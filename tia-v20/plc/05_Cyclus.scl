@@ -8,6 +8,9 @@ BEGIN
 	    "Magazijn".Bediening.InitTest := FALSE;
 	END_IF;
 
+	// Orders van het MES, levensteken, HMI-bediening orders
+	"iMes"();
+
 	// Simulatie; vervang door de echte kraanbesturing
 	"iKraanSim1"(Gang := 1, Vrijgave := "Magazijn".Bediening.Auto);
 	"iKraanSim2"(Gang := 2, Vrijgave := "Magazijn".Bediening.Auto);

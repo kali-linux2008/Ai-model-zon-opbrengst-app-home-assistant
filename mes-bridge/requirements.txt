@@ -1,0 +1,2 @@
+asyncua>=1.1
+aiohttp>=3.9
