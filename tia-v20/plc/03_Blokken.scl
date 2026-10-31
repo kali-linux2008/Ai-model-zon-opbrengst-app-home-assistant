@@ -1,0 +1,213 @@
+FUNCTION "FC_Magazijn" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Bediening, weergavecode per vak, bezetting per gang, oudste product en alarm.
+// Elke cyclus aanroepen vanuit Main (OB1).
+   VAR_TEMP
+      s : Int;
+      i : Int;
+      g : Int;
+      cnt : Array[1..2] of Int;
+      storing : Bool;
+      oudsteNr : DInt;
+      oudsteVak : Int;
+   END_VAR
+
+BEGIN
+	// --- Bediening (knoppen zijn pulsen vanaf de HMI) -----------------
+	IF "Magazijn".Bediening.Start THEN
+	    "Magazijn".Bediening.Auto := TRUE;
+	    "Magazijn".Bediening.Start := FALSE;
+	END_IF;
+
+	IF "Magazijn".Bediening.Stop OR "Magazijn".Bediening.Hand THEN
+	    "Magazijn".Bediening.Auto := FALSE;
+	    "Magazijn".Bediening.Stop := FALSE;
+	    "Magazijn".Bediening.Hand := FALSE;
+	END_IF;
+
+	IF "Magazijn".Bediening.Reset THEN
+	    // Vakken met onbekend product vrijgeven
+	    FOR #s := 1 TO 4 DO
+	        FOR #i := 1 TO 54 DO
+	            IF "Magazijn".Vak[#s, #i].Bezet AND "Magazijn".Vak[#s, #i].Soort = 0 THEN
+	                "Magazijn".Vak[#s, #i].Bezet := FALSE;
+	            END_IF;
+	        END_FOR;
+	    END_FOR;
+	    "Magazijn".Bediening.Reset := FALSE;
+	END_IF;
+
+	// --- Weergave, bezetting, storing en oudste product -------------
+	#cnt[1] := 0;
+	#cnt[2] := 0;
+	#storing := FALSE;
+	#oudsteNr := 0;
+	#oudsteVak := 0;
+
+	FOR #s := 1 TO 4 DO
+	    #g := (#s + 1) / 2;   // stelling 1,2 -> gang 1; stelling 3,4 -> gang 2
+	    FOR #i := 1 TO 54 DO
+	        IF NOT "Magazijn".Vak[#s, #i].Bezet THEN
+	            "Magazijn".Vak[#s, #i].Weergave := 0;
+	        ELSE
+	            #cnt[#g] := #cnt[#g] + 1;
+	            CASE "Magazijn".Vak[#s, #i].Soort OF
+	                1:
+	                    "Magazijn".Vak[#s, #i].Weergave := 1;
+	                2:
+	                    "Magazijn".Vak[#s, #i].Weergave := 2;
+	                11:
+	                    "Magazijn".Vak[#s, #i].Weergave := 3;
+	                12:
+	                    "Magazijn".Vak[#s, #i].Weergave := 4;
+	                ELSE
+	                    "Magazijn".Vak[#s, #i].Weergave := 9;
+	                    #storing := TRUE;
+	            END_CASE;
+
+	            IF "Magazijn".Vak[#s, #i].Weergave <> 9
+	                AND (#oudsteNr = 0 OR "Magazijn".Vak[#s, #i].Volgnummer < #oudsteNr)
+	            THEN
+	                #oudsteNr := "Magazijn".Vak[#s, #i].Volgnummer;
+	                #oudsteVak := #s * 100 + #i;
+	                "Magazijn".OudsteTijd := "Magazijn".Vak[#s, #i].Inslagtijd;
+	            END_IF;
+	        END_IF;
+	    END_FOR;
+	END_FOR;
+
+	// 108 vakken per gang, afgerond op hele procenten
+	"Magazijn".BezettingPct[1] := (#cnt[1] * 100 + 54) / 108;
+	"Magazijn".BezettingPct[2] := (#cnt[2] * 100 + 54) / 108;
+	"Magazijn".OudsteVak := #oudsteVak;
+
+	// Alarm W-104: vak met onbekend product
+	"Magazijn".AlarmWoord.%X0 := #storing;
+
+END_FUNCTION
+
+FUNCTION "FC_InitTest" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Vult het magazijn met een vaste testbezetting, inclusief storing op vak 137.
+   VAR_TEMP
+      s : Int;
+      i : Int;
+      g : Int;
+      nu : DTL;
+      ret : Int;
+   END_VAR
+
+BEGIN
+	#ret := RD_LOC_T(#nu);
+
+	FOR #s := 1 TO 4 DO
+	    #g := (#s + 1) / 2;
+	    FOR #i := 1 TO 54 DO
+	        "Magazijn".Vak[#s, #i].Bezet := ((#i * 7 + #s * 3) MOD 5) < 2;
+	        "Magazijn".Vak[#s, #i].Soort := (#g - 1) * 10 + 1 + ((#i + #s) MOD 2);
+	        "Magazijn".Vak[#s, #i].Gereserveerd := "Magazijn".Vak[#s, #i].Bezet AND (#i MOD 13 = 0);
+	        "Magazijn".Vak[#s, #i].Volgnummer := INT_TO_DINT(#s * 100 + #i);
+	        "Magazijn".Vak[#s, #i].Inslagtijd := #nu;
+	    END_FOR;
+	END_FOR;
+
+	// Vak 137: product onbekend (Soort 0) -> alarm W-104
+	"Magazijn".Vak[1, 37].Bezet := TRUE;
+	"Magazijn".Vak[1, 37].Soort := 0;
+
+	"Magazijn".Volgnummer := 1000;
+	"Magazijn".InTeller := 0;
+	"Magazijn".UitTeller := 0;
+END_FUNCTION
+
+FUNCTION_BLOCK "FB_KraanSim"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Simulatie van een stapelkraan voor test in PLCSIM.
+// Kiest elke 3 s een willekeurig vak in de eigen gang: leeg -> inslag, bezet -> uitslag.
+// In een echte installatie vervang je dit blok door de kraanbesturing,
+// die dezelfde velden in "Magazijn".Kraan[] en "Magazijn".Vak[] bijwerkt.
+   VAR_INPUT
+      Gang : Int;   // 1 = blauw, 2 = groen
+      Vrijgave : Bool;   // automatisch bedrijf
+   END_VAR
+
+   VAR
+      tCyclus {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      tRijden {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      Rnd : DInt;
+      Bezig : Bool;
+      Stel : Int;
+      Idx : Int;
+      Inslag : Bool;
+   END_VAR
+
+   VAR_TEMP
+      x : Int;
+      y : Int;
+      nu : DTL;
+      ret : Int;
+   END_VAR
+
+BEGIN
+	// Pseudo-random generator (past binnen DInt, ook op S7-1200)
+	IF #Rnd = 0 THEN
+	    #Rnd := 1000 + #Gang * 7919;
+	END_IF;
+
+	// --- Nieuwe opdracht elke 3 s -----------------------------------
+	#tCyclus(IN := #Vrijgave AND NOT #Bezig AND NOT #tCyclus.Q,
+	         PT := T#3S);
+
+	IF #tCyclus.Q THEN
+	    #Rnd := (#Rnd * 75 + 74) MOD 65537;
+	    #Stel := (#Gang - 1) * 2 + 1 + DINT_TO_INT(#Rnd MOD 2);
+	    #Rnd := (#Rnd * 75 + 74) MOD 65537;
+	    #x := 1 + DINT_TO_INT(#Rnd MOD 9);
+	    #Rnd := (#Rnd * 75 + 74) MOD 65537;
+	    #y := 1 + DINT_TO_INT(#Rnd MOD 6);
+	    #Idx := (#y - 1) * 9 + #x;
+	    #Inslag := NOT "Magazijn".Vak[#Stel, #Idx].Bezet;
+
+	    "Magazijn".Kraan[#Gang].Stelling := #Stel - (#Gang - 1) * 2 - 1;
+	    "Magazijn".Kraan[#Gang].X := #x;
+	    "Magazijn".Kraan[#Gang].Y := #y;
+	    "Magazijn".Kraan[#Gang].DoelVak := #Stel * 100 + #Idx;
+	    IF #Inslag THEN
+	        "Magazijn".Kraan[#Gang].Status := 1;
+	    ELSE
+	        "Magazijn".Kraan[#Gang].Status := 2;
+	    END_IF;
+	    #Bezig := TRUE;
+	END_IF;
+
+	// --- Rijtijd 1,5 s, daarna opdracht afronden ---------------------
+	#tRijden(IN := #Bezig,
+	         PT := T#1500MS);
+
+	IF #tRijden.Q THEN
+	    // Vakken met storing laat de kraan met rust
+	    IF NOT ("Magazijn".Vak[#Stel, #Idx].Bezet AND "Magazijn".Vak[#Stel, #Idx].Soort = 0) THEN
+	        IF #Inslag THEN
+	            #Rnd := (#Rnd * 75 + 74) MOD 65537;
+	            "Magazijn".Vak[#Stel, #Idx].Bezet := TRUE;
+	            "Magazijn".Vak[#Stel, #Idx].Soort := (#Gang - 1) * 10 + 1 + DINT_TO_INT(#Rnd MOD 2);
+	            "Magazijn".Volgnummer := "Magazijn".Volgnummer + 1;
+	            "Magazijn".Vak[#Stel, #Idx].Volgnummer := "Magazijn".Volgnummer;
+	            #ret := RD_LOC_T(#nu);
+	            "Magazijn".Vak[#Stel, #Idx].Inslagtijd := #nu;
+	            "Magazijn".InTeller := "Magazijn".InTeller + 1;
+	        ELSE
+	            "Magazijn".Vak[#Stel, #Idx].Bezet := FALSE;
+	            "Magazijn".UitTeller := "Magazijn".UitTeller + 1;
+	        END_IF;
+	        "Magazijn".Vak[#Stel, #Idx].Gereserveerd := FALSE;
+	    END_IF;
+	    "Magazijn".Kraan[#Gang].Status := 0;
+	    #Bezig := FALSE;
+	END_IF;
+
+END_FUNCTION_BLOCK
+

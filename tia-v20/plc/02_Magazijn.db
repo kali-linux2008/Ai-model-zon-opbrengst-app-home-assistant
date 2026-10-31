@@ -1,0 +1,20 @@
+DATA_BLOCK "Magazijn"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR RETAIN
+      Bediening : "typeBediening";
+      Vak : Array[1..4, 1..54] of "typeVak";   // stelling 1..4 = vakken 101-154, 201-254, 301-354, 401-454
+      Kraan : Array[1..2] of "typeKraan";   // 1 = gang blauw (K1), 2 = gang groen (K2)
+      BezettingPct : Array[1..2] of Int;   // per gang, 0..100 %
+      OudsteVak : Int;   // vaknummer van het oudste product (0 = geen)
+      OudsteTijd : DTL;
+      InTeller : DInt;   // aantal inslagen
+      UitTeller : DInt;   // aantal uitslagen
+      Volgnummer : DInt;   // laatst uitgegeven volgnummer
+      AlarmWoord : Word;   // bit 0 = vak met onbekend product (W-104)
+   END_VAR
+
+BEGIN
+
+END_DATA_BLOCK
+

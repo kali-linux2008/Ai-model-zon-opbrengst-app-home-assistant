@@ -1,0 +1,38 @@
+TYPE "typeVak"
+VERSION : 0.1
+   STRUCT
+      Bezet : Bool;   // pallet aanwezig
+      Gereserveerd : Bool;   // vak gereserveerd voor een order
+      Soort : Int;   // 0 = onbekend (storing), 1 = Base blauw, 2 = Lid blauw, 11 = Base groen, 12 = Lid groen
+      Weergave : Int;   // berekend door FC_Magazijn: 0 leeg, 1 Base blauw, 2 Lid blauw, 3 Base groen, 4 Lid groen, 9 storing
+      Volgnummer : DInt;   // oplopend bij inslag, laagste = oudste product
+      Inslagtijd : DTL;   // moment van inslag
+   END_STRUCT;
+
+END_TYPE
+
+TYPE "typeKraan"
+VERSION : 0.1
+   STRUCT
+      Stelling : Int;   // 0 = links, 1 = rechts (binnen de gang)
+      X : Int;   // kolom 1..9
+      Y : Int;   // laag 1..6
+      Status : Int;   // 0 = gereed, 1 = inslag, 2 = uitslag
+      DoelVak : Int;   // vaknummer, bv. 137
+   END_STRUCT;
+
+END_TYPE
+
+TYPE "typeBediening"
+VERSION : 0.1
+   STRUCT
+      Start : Bool;   // HMI-knop (puls), wordt door PLC teruggezet
+      Stop : Bool;   // HMI-knop (puls)
+      Reset : Bool;   // HMI-knop (puls): vakken met storing vrijgeven
+      Hand : Bool;   // HMI-knop (puls): naar handbedrijf
+      InitTest : Bool;   // HMI-knop (puls): testvulling laden
+      Auto : Bool;   // status: automatisch bedrijf actief
+   END_STRUCT;
+
+END_TYPE
+
