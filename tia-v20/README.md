@@ -170,3 +170,47 @@ tekst `Vak met onbekend product (Soort 0)`, triggertag `AlarmWoord`, bit 0.
 | RESET | 133,79,11 |
 | Alarmbalk | 250,238,218 (rand 239,159,39, tekst 99,56,6) |
 | Kraan / pallets | 186,117,23 |
+
+---
+
+## 4. Schermen (F1–F6)
+
+Het ontwerp `magazijn-hmi/industrieel.html` bevat alle schermen. Elk scherm is
+1280 × 800 met dezelfde kopregel (0–40), alarmregel (40–70) en F-toetsenbalk (750–800).
+Maak die drie in een **schermsjabloon** (Unified: *Screen* met *Screen window* voor de inhoud).
+
+| Toets | Scherm | Inhoud |
+|---|---|---|
+| F1 | Fabriek | 4 KPI-tegels, productiestroom (lijnen → wikkelaar → scanner → verdeler → invoer → magazijn → uitvoer → docks), productie per uur, dienst, lijnsnelheid |
+| F2 | Magazijn | Stellingen, kranen, bezetting, bediening (zie hoofdstuk 3) |
+| F3 | Orders | Ordertabel met voortgang en status, knoppen Nieuw/Start/Pauze/Annuleren, orderdetail met FIFO-picklijst |
+| F4 | Kraan | Tabs K1/K2, zijaanzicht van de actieve stelling met mast/slede/vork, rijas/hefas in mm, status, jog-knoppen, onderhoudsteller |
+| F5 | Alarmen | Tabs Actief / Historie / Bedieningslog, filter per klasse, Bevestigen / Alles bevestigen |
+| F6 | Diagnose | Tabs Systeem (Profinet-overzicht, CPU-belasting, cyclustijd), Gebruikers, Rechten |
+
+**TIA-objecten per scherm**
+- F1: mach-blokken = rechthoek + tekst + cirkel (LED, kleur via bereiklijst op een statustag). Lijnen = *Polyline*; stroom zichtbaar via knipperen of kleur op `Bediening.Auto`. Productie per uur = *Trend control* of 8 balken.
+- F3: *Parameter set control* of een eigen tabel met faceplates; ordergegevens komen uit een DB `Orders : Array[1..20] of typeOrder`.
+- F4: zelfde formules als hoofdstuk 3 met vak 66 × 60 px, oorsprong (60, 190). Jog-knoppen zetten bits `Kraan[n].JogXPlus` enz.; alleen zichtbaar/bedienbaar in HAND.
+- F5: **Alarm control** (Unified) met filters op alarmklasse. Bedieningslog = **Audit trail** (Unified, optie) of een eigen tekstlog.
+- F6: *System diagnostics control* voor het Profinet-overzicht; gebruikers via *User management control*.
+
+## 5. Gebruikers en rechten
+
+| Rol | Rechten (cumulatief) |
+|---|---|
+| Gast (niet aangemeld) | Alleen bekijken |
+| Operator | Start/stop, meldingen bevestigen, orders aanmaken/starten/pauzeren |
+| Technicus | + handbedrijf en kraan verfahren, storing resetten, order annuleren, onderhoudsteller resetten |
+| Beheerder | + gebruikers beheren |
+
+**Instellen in TIA V20**
+- **Unified**: projectboom → *Security settings* → *Users and roles*. Maak functierechten
+  (bv. `Bedienen`, `Alarm`, `Orders`, `Hand`, `Reset`, `Annuleren`, `Service`, `Gebruikers`)
+  en de rollen Operator / Technicus / Beheerder. Wijs per knop onder *Security → Authorization* het
+  functierecht toe. Automatisch afmelden: *Runtime settings → Security → Logoff time* = 5 min.
+- **Comfort**: *Gebruikersbeheer* → gebruikersgroepen en autorisaties met dezelfde namen;
+  per knop *Eigenschappen → Beveiliging → Autorisatie*. Afmeldtijd per gebruiker = 5 min.
+- Knop zonder recht: in TIA verschijnt bij aantikken automatisch het aanmelddialoog,
+  net als in het ontwerp.
+- Gebruikersnaam in de kopregel: systeemtag *Current user* (Unified) / *@CurrentUser* (Comfort).
