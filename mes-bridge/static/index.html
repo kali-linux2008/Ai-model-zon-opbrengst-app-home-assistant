@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#23272B">
+<title>Magazijn Bestellen</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/static/icoon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/static/icoon.svg">
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/app.js" defer></script>
+</head>
+<body>
+<header class="kop">
+  <img src="/static/icoon.svg" alt="" width="28" height="28">
+  <span class="titel">MAGAZIJN</span>
+  <span class="spacer"></span>
+  <span class="pil" id="plcPil" hidden><span class="led" id="plcLed"></span><span id="plcTekst">PLC</span></span>
+  <button class="link" id="uitloggen" hidden>Uitloggen</button>
+</header>
+
+<main id="login" class="kaart smal" hidden>
+  <h1>Inloggen</h1>
+  <form id="loginForm" autocomplete="on">
+    <label>Gebruikersnaam<input name="naam" autocomplete="username" autocapitalize="none" required></label>
+    <label>Wachtwoord<input name="wachtwoord" type="password" autocomplete="current-password" required></label>
+    <button class="hoofd">INLOGGEN</button>
+    <p class="melding" id="loginMelding" role="alert"></p>
+  </form>
+</main>
+
+<div id="app" hidden>
+  <nav class="tabs" id="tabs" role="tablist"></nav>
+
+  <main>
+    <section id="v-bestellen" class="view">
+      <div class="kaart">
+        <h2>Nieuwe order</h2>
+        <form id="orderForm">
+          <fieldset>
+            <legend>Product</legend>
+            <div class="producten" id="producten"></div>
+          </fieldset>
+          <label>Aantal pallets
+            <div class="stepper">
+              <button type="button" id="min" aria-label="minder">−</button>
+              <input name="aantal" id="aantal" type="number" inputmode="numeric" min="1" max="50" value="5" required>
+              <button type="button" id="plus" aria-label="meer">+</button>
+            </div>
+          </label>
+          <div id="plannerVelden" hidden>
+            <label>Klant<input name="klant" maxlength="30" placeholder="Intern"></label>
+            <label>Prioriteit<select name="prio"><option value="1">Hoog</option><option value="2" selected>Normaal</option><option value="3">Laag</option></select></label>
+            <label>Eigen ordernummer (optioneel)<input name="nr" maxlength="20" pattern="[A-Za-z0-9_\-]{1,20}"></label>
+          </div>
+          <button class="hoofd">BESTELLEN</button>
+          <p class="melding" id="orderMelding" role="status"></p>
+        </form>
+      </div>
+    </section>
+
+    <section id="v-orders" class="view" hidden>
+      <div class="lijst" id="orderLijst"></div>
+    </section>
+
+    <section id="v-beheer" class="view" hidden>
+      <div class="kaart">
+        <h2>Gebruikers</h2>
+        <div class="tabelwrap"><table><thead><tr><th>Naam</th><th>Rol</th><th>Klant</th><th>Laatst ingelogd</th><th>Status</th><th></th></tr></thead><tbody id="gebruikers"></tbody></table></div>
+      </div>
+      <div class="kaart">
+        <h2>Nieuwe gebruiker</h2>
+        <form id="gebruikerForm" class="raster">
+          <label>Naam<input name="naam" pattern="[a-z0-9._\-]{3,32}" autocapitalize="none" required></label>
+          <label>Rol<select name="rol"><option value="klant">Klant</option><option value="planner">Planner</option><option value="beheerder">Beheerder</option></select></label>
+          <label>Klantnaam<input name="klantnaam" maxlength="30"></label>
+          <label>Startwachtwoord<input name="wachtwoord" type="password" minlength="10" autocomplete="new-password" required></label>
+          <button class="hoofd">AANMAKEN</button>
+          <p class="melding" id="gebruikerMelding" role="status"></p>
+        </form>
+      </div>
+      <div class="kaart">
+        <h2>Logboek</h2>
+        <ul class="log" id="logboek"></ul>
+      </div>
+    </section>
+
+    <section id="v-account" class="view" hidden>
+      <div class="kaart smal">
+        <h2>Account</h2>
+        <p id="accountInfo"></p>
+        <form id="wwForm">
+          <label>Huidig wachtwoord<input name="oud" type="password" autocomplete="current-password" required></label>
+          <label>Nieuw wachtwoord (min. 10 tekens)<input name="nieuw" type="password" minlength="10" autocomplete="new-password" required></label>
+          <button class="hoofd">WACHTWOORD WIJZIGEN</button>
+          <p class="melding" id="wwMelding" role="status"></p>
+        </form>
+      </div>
+    </section>
+  </main>
+</div>
+<div id="toast" role="status" hidden></div>
+</body>
+</html>

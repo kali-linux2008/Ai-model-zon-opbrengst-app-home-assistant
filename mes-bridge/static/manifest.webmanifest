@@ -1,0 +1,10 @@
+{
+  "name": "Magazijn Bestellen",
+  "short_name": "Magazijn",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#23272B",
+  "theme_color": "#23272B",
+  "icons": [{"src": "/static/icoon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any"}]
+}

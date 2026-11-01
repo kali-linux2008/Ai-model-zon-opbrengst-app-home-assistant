@@ -12,6 +12,7 @@ plc/
   03_Blokken.scl    FC_Magazijn, FC_InitTest, FB_KraanSim
   04_Instanties.db  instance-DB's iKraanSim1/2
   05_Cyclus.scl     FC_Cyclus (roept alles aan)
+  06_FactoryIO.scl  FB_StapelKraan (Factory I/O-kraan), FC_VisionNaarSoort — zie factoryio/LEERPAD.md
 ```
 
 Werkt op S7-1500 en S7-1200 (geen LInt/LReal gebruikt).
@@ -224,7 +225,7 @@ Orders worden niet op de HMI aangemaakt maar komen uit het MES, via de
 De HMI toont de orders en mag ze alleen starten, pauzeren of (Technicus) annuleren.
 
 ```
-MES → mes_bridge.py (laptop) → OPC UA → DB "Mes" → FB_Mes → kraan (FIFO-uitslag) → FC_OrderPick
+bestel-app / MES → server.py (mini-server, zie mes-bridge/README.md) → OPC UA → DB "Mes" → FB_Mes → kraan (FIFO-uitslag) → FC_OrderPick
 ```
 
 ### PLC

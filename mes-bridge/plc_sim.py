@@ -7,7 +7,7 @@ handshake nieuwe order / annuleren, levensteken, MesOnline, automatisch starten
 van de volgende order per gang, en elke 3 s een uitgeslagen pallet per actieve gang.
 
     python plc_sim.py               # opc.tcp://0.0.0.0:4840
-    python mes_bridge.py --plc opc.tcp://localhost:4840
+    python server.py start --plc opc.tcp://localhost:4840
 """
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ import logging
 
 from asyncua import Server, ua
 
-from mes_bridge import AANTAL_ORDERS, NS_URI, VELDEN
+from plc import AANTAL_ORDERS, NS_URI, VELDEN
 
 log = logging.getLogger("plc-sim")
 
@@ -149,5 +149,5 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--poort", type=int, default=4840)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    logging.getLogger("asyncua").setLevel(logging.WARNING)
+    logging.getLogger("asyncua").setLevel(logging.ERROR)
     asyncio.run(main(ap.parse_args().poort))

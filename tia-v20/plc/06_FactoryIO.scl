@@ -1,0 +1,193 @@
+FUNCTION_BLOCK "FB_StapelKraan"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Besturing van de Factory I/O "Stacker Crane" in configuratie Numerical.
+//
+// Factory I/O-tags (zie factoryio/LEERPAD.md):
+//   uitgangen PLC -> kraan : Target Position (Int), Left, Right, Lift (Bool)
+//   ingangen  kraan -> PLC : Moving X, Moving Z, Left Limit, Middle Limit, Right Limit (Bool)
+//   Target Position 1..54 = vak, 0 = blijf staan, 55 = rustpositie.
+//
+// Eén opdracht = pallet ophalen op positie A en afzetten op positie B:
+//   inslag : A = laadplaats (55, LaadZijde)  ->  B = Vak (VakZijde)
+//   uitslag: A = Vak (VakZijde)              ->  B = laadplaats (55, LaadZijde)
+//
+// Stappen (zichtbaar op de HMI, F4 Kraan):
+//   0   rust              10..14 ophalen              20..24 afzetten
+//   30  terug naar rust   900    fout (watchdog)
+//   x0 rijden, x1 wachten tot stil, x2 vork uit, x3 heffen/zakken, x4 vork in
+   VAR_INPUT
+      Start : Bool;   // opgaande flank start een opdracht
+      Inslag : Bool;   // TRUE = laadplaats -> vak, FALSE = vak -> laadplaats
+      Vak : Int;   // 1..54
+      VakZijde : Int;   // 0 = links (vork Left), 1 = rechts (vork Right)
+      LaadZijde : Int;   // zijde van de in-/uitvoerband bij de rustpositie
+      Reset : Bool;   // fout resetten (alleen als de vork in het midden staat)
+      MovingX : Bool;
+      MovingZ : Bool;
+      LimLeft : Bool;
+      LimMiddle : Bool;
+      LimRight : Bool;
+   END_VAR
+
+   VAR_OUTPUT
+      TargetPosition : Int;
+      ForkLeft : Bool;
+      ForkRight : Bool;
+      Lift : Bool;
+      Bezig : Bool;
+      Gereed : Bool;   // puls: opdracht afgerond
+      Fout : Bool;
+      Stap : Int;
+      FoutStap : Int;   // stap waarin de watchdog afging
+   END_VAR
+
+   VAR
+      rStart {InstructionName := 'R_TRIG'; LibVersion := '1.0'} : R_TRIG;
+      tStap {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      tRust {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      VorigeStap : Int;
+      oInslag : Bool;
+      oVak : Int;
+      oVakZijde : Int;
+      oLaadZijde : Int;
+      Zijde : Int;   // zijde van de huidige vorkbeweging
+   END_VAR
+
+   VAR_TEMP
+      stapNieuw : Bool;
+      stil : Bool;
+      vorkUit : Bool;
+   END_VAR
+
+   VAR CONSTANT
+      RUST : Int := 55;
+   END_VAR
+
+BEGIN
+	#Gereed := FALSE;
+	#rStart(CLK := #Start);
+
+	// Watchdog: elke stap moet binnen 20 s klaar zijn
+	#stapNieuw := #Stap <> #VorigeStap;
+	#VorigeStap := #Stap;
+	#tStap(IN := #Stap > 0 AND #Stap < 900 AND NOT #stapNieuw, PT := T#20S);
+	IF #tStap.Q THEN
+	    #FoutStap := #Stap;
+	    #Stap := 900;
+	END_IF;
+
+	// "Stil": 300 ms na de stapwissel en geen Moving-signaal meer.
+	// (Moving X/Z worden pas na een paar cycli hoog; zonder wachttijd zou de stap direct doorgaan.)
+	#tRust(IN := NOT #stapNieuw, PT := T#300MS);
+	#stil := #tRust.Q AND NOT #MovingX AND NOT #MovingZ;
+	#vorkUit := (#Zijde = 0 AND #LimLeft) OR (#Zijde = 1 AND #LimRight);
+
+	CASE #Stap OF
+	    0:  // rust
+	        IF #rStart.Q AND #Vak >= 1 AND #Vak <= 54 THEN
+	            #oInslag := #Inslag;
+	            #oVak := #Vak;
+	            #oVakZijde := #VakZijde;
+	            #oLaadZijde := #LaadZijde;
+	            #Stap := 10;
+	        END_IF;
+
+	    // ---------------- ophalen ----------------
+	    10: // rijden naar ophaalpositie
+	        #Lift := FALSE;
+	        IF #oInslag THEN
+	            #TargetPosition := #RUST;
+	            #Zijde := #oLaadZijde;
+	        ELSE
+	            #TargetPosition := #oVak;
+	            #Zijde := #oVakZijde;
+	        END_IF;
+	        #Stap := 11;
+	    11: IF #stil THEN #Stap := 12; END_IF;
+	    12: // vork uit onder de pallet
+	        #ForkLeft := #Zijde = 0;
+	        #ForkRight := #Zijde = 1;
+	        IF #vorkUit THEN #Stap := 13; END_IF;
+	    13: // pallet optillen
+	        #Lift := TRUE;
+	        IF #stil THEN #Stap := 14; END_IF;
+	    14: // vork in
+	        #ForkLeft := FALSE;
+	        #ForkRight := FALSE;
+	        IF #LimMiddle AND #tRust.Q THEN #Stap := 20; END_IF;
+
+	    // ---------------- afzetten ----------------
+	    20: // rijden naar afzetpositie (Lift blijft hoog)
+	        IF #oInslag THEN
+	            #TargetPosition := #oVak;
+	            #Zijde := #oVakZijde;
+	        ELSE
+	            #TargetPosition := #RUST;
+	            #Zijde := #oLaadZijde;
+	        END_IF;
+	        #Stap := 21;
+	    21: IF #stil THEN #Stap := 22; END_IF;
+	    22: // vork uit boven de plaats
+	        #ForkLeft := #Zijde = 0;
+	        #ForkRight := #Zijde = 1;
+	        IF #vorkUit THEN #Stap := 23; END_IF;
+	    23: // pallet neerzetten
+	        #Lift := FALSE;
+	        IF #stil THEN #Stap := 24; END_IF;
+	    24: // vork in
+	        #ForkLeft := FALSE;
+	        #ForkRight := FALSE;
+	        IF #LimMiddle AND #tRust.Q THEN #Stap := 30; END_IF;
+
+	    30: // terug naar rust
+	        #TargetPosition := #RUST;
+	        IF #stil THEN
+	            #Gereed := TRUE;
+	            #Stap := 0;
+	        END_IF;
+
+	    900: // fout: uitgangen blijven staan, operator/technicus grijpt in
+	        IF #Reset AND #LimMiddle THEN
+	            #ForkLeft := FALSE;
+	            #ForkRight := FALSE;
+	            #Lift := FALSE;
+	            #FoutStap := 0;
+	            #Stap := 30;   // eerst terug naar rust
+	        END_IF;
+
+	    ELSE
+	        #Stap := 0;
+	END_CASE;
+
+	#Bezig := #Stap > 0 AND #Stap < 900;
+	#Fout := #Stap = 900;
+
+END_FUNCTION_BLOCK
+
+FUNCTION "FC_VisionNaarSoort" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Factory I/O Vision Sensor (All Numerical) -> Soort in het magazijn.
+//   2 Blue Product Lid  -> 2  (Lid blauw)     3 Blue Product Base  -> 1  (Base blauw)
+//   5 Green Product Lid -> 12 (Lid groen)     6 Green Product Base -> 11 (Base groen)
+//   al het andere (grondstof, metaal, niets) -> 0 = onbekend -> afkeur + melding W-104
+   VAR_INPUT
+      Vision : Int;
+   END_VAR
+
+BEGIN
+	CASE #Vision OF
+	    2:
+	        #FC_VisionNaarSoort := 2;
+	    3:
+	        #FC_VisionNaarSoort := 1;
+	    5:
+	        #FC_VisionNaarSoort := 12;
+	    6:
+	        #FC_VisionNaarSoort := 11;
+	    ELSE
+	        #FC_VisionNaarSoort := 0;
+	END_CASE;
+END_FUNCTION
+
