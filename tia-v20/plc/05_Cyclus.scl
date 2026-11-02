@@ -1,0 +1,20 @@
+FUNCTION "FC_Cyclus" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Roep deze FC aan vanuit Main (OB1).
+BEGIN
+	IF "Magazijn".Bediening.InitTest THEN
+	    "FC_InitTest"();
+	    "Magazijn".Bediening.InitTest := FALSE;
+	END_IF;
+
+	// Orders van het MES, levensteken, HMI-bediening orders
+	"iMes"();
+
+	// Simulatie; vervang door de echte kraanbesturing
+	"iKraanSim1"(Gang := 1, Vrijgave := "Magazijn".Bediening.Auto);
+	"iKraanSim2"(Gang := 2, Vrijgave := "Magazijn".Bediening.Auto);
+
+	"FC_Magazijn"();
+END_FUNCTION
+

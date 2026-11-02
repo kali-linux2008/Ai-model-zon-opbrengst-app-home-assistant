@@ -1,0 +1,103 @@
+// VOORBEELD — niet importeren. Maak eerst je eigen kraan-UDT's (zie factoryio/LEERPAD.md, niveau 3)
+// en vergelijk daarna met dit voorbeeld.
+
+TYPE "typeKraanIn"
+VERSION : 0.1
+// Factory I/O Stacker Crane (Numerical) -> PLC
+   STRUCT
+      MovingX : Bool;   // kraan rijdt (X-as)
+      MovingZ : Bool;   // platform heft/zakt (Z-as)
+      LimLeft : Bool;   // vork staat links uit
+      LimMiddle : Bool;   // vork staat in het midden (veilig om te rijden)
+      LimRight : Bool;   // vork staat rechts uit
+   END_STRUCT;
+
+END_TYPE
+
+TYPE "typeKraanUit"
+VERSION : 0.1
+// PLC -> Factory I/O Stacker Crane (Numerical)
+   STRUCT
+      TargetPosition : Int;   // 1..54 vak, 0 = blijf staan, 55 = rustpositie
+      ForkLeft : Bool;   // vork naar links
+      ForkRight : Bool;   // vork naar rechts
+      Lift : Bool;   // platform iets omhoog (pallet optillen)
+   END_STRUCT;
+
+END_TYPE
+
+TYPE "typeKraanOpdracht"
+VERSION : 0.1
+// Opdracht van het magazijnbeheer aan de kraan
+   STRUCT
+      Start : Bool;   // opgaande flank start de opdracht
+      Inslag : Bool;   // TRUE = laadplaats -> vak, FALSE = vak -> laadplaats
+      Vak : Int;   // 1..54
+      VakZijde : Int;   // 0 = linker stelling, 1 = rechter stelling
+      LaadZijde : Int;   // zijde van de in-/uitvoerband bij de rustpositie
+   END_STRUCT;
+
+END_TYPE
+
+TYPE "typeKraanHand"
+VERSION : 0.1
+// Handbediening vanaf HMI-scherm F4 (alleen Technicus, alleen in HAND)
+   STRUCT
+      Actief : Bool;   // handbedrijf aan (modus HAND)
+      Doel : Int;   // doelpositie 1..55
+      Rijden : Bool;   // puls: rijd naar Doel (alleen met vork in het midden)
+      VorkLinks : Bool;   // vasthouden: vork links (alleen als de kraan stil staat)
+      VorkRechts : Bool;   // vasthouden: vork rechts
+      Heffen : Bool;   // platform omhoog (alleen als de kraan stil staat)
+   END_STRUCT;
+
+END_TYPE
+
+TYPE "typeKraanStatus"
+VERSION : 0.1
+// Status voor HMI, magazijnbeheer en diagnose
+   STRUCT
+      Bezig : Bool;   // opdracht loopt
+      Gereed : Bool;   // puls: opdracht afgerond
+      Fout : Bool;   // watchdog afgegaan (stap 900)
+      Stap : Int;   // stap van de stappenketen (tekstlijst op de HMI)
+      FoutStap : Int;   // stap waarin de fout optrad
+      Positie : Int;   // laatst bereikte positie 1..55
+      X : Int;   // kolom 1..9 (0 = rustpositie)
+      Y : Int;   // laag 1..6 (0 = rustpositie)
+      Cycli : DInt;   // aantal afgeronde opdrachten
+      Cyclustijd : Time;   // duur van de laatste opdracht
+      Interlock : Bool;   // handcommando geweigerd (bv. rijden met vork uit)
+   END_STRUCT;
+
+END_TYPE
+
+TYPE "typeKraanFio"
+VERSION : 0.1
+// Alles van één Factory I/O-stapelkraan in één type
+   STRUCT
+      "In" : "typeKraanIn";
+      Uit : "typeKraanUit";
+      Opdracht : "typeKraanOpdracht";
+      Hand : "typeKraanHand";
+      Status : "typeKraanStatus";
+      Reset : Bool;   // fout resetten (puls)
+   END_STRUCT;
+
+END_TYPE
+
+
+DATA_BLOCK "Kranen"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// De Factory I/O-stapelkranen: K[1] = gang blauw, K[2] = gang groen.
+// HMI-scherm F4 leest Status en schrijft Hand; FB_StapelKraan doet de rest.
+NON_RETAIN
+   VAR 
+      K : Array[1..2] of "typeKraanFio";
+   END_VAR
+
+BEGIN
+
+END_DATA_BLOCK
+

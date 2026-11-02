@@ -1,0 +1,693 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Magazijn HMI Industrieel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --behuizing:#2E3135;--behuizing-licht:#474B50;
+  --scherm:#C6C9CC;--kop:#1E2226;--tekst:#1A1D20;--tekst2:#4A4F55;
+  --staal:#626870;--leeg:#ECECE9;--lijn:#8E949A;
+  --accent:#2A71B8;--ok:#3FC24A;--warn:#F2C200;--err:#D93636;--info:#2A71B8;
+  --kraan:#BA7517;--res:#EF9F27;
+  --font:"Barlow",Arial,Helvetica,sans-serif;
+  --cond:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:#121417;min-height:100vh;padding:16px;font-family:var(--font);overflow-x:hidden}
+#fit{position:relative;margin:0 auto}
+#paneel{position:absolute;top:0;left:0;transform-origin:0 0;width:1360px;height:900px;border-radius:22px;padding:40px;
+  background:linear-gradient(180deg,var(--behuizing-licht),var(--behuizing) 12%,var(--behuizing) 88%,#1E2124);
+  box-shadow:0 0 0 2px #0a0b0c,inset 0 1px 0 #6a6f75,0 18px 40px rgba(0,0,0,.6)}
+.schroef{position:absolute;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#9aa0a6,#3c4045);box-shadow:inset 0 0 0 1px #222}
+.schroef::after{content:"";position:absolute;left:3px;right:3px;top:6px;height:2px;background:#2a2d31;transform:rotate(35deg)}
+.merk{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);color:#8A9096;font:600 13px var(--cond);letter-spacing:4px}
+.led-run{position:absolute;bottom:13px;right:60px;display:flex;align-items:center;gap:6px;color:#8A9096;font:600 11px var(--cond);letter-spacing:1px}
+.led-run i{width:9px;height:9px;border-radius:50%;background:#5CE05C;box-shadow:0 0 6px #5CE05C}
+
+#scherm{position:relative;width:1280px;height:800px;overflow:hidden;color:var(--tekst);font-size:14px;user-select:none;
+  background:linear-gradient(#CDD0D3,#C1C4C7);box-shadow:0 0 0 3px #0e1012,inset 0 0 0 1px #9da2a7}
+.abs{position:absolute}
+.scr{position:absolute;inset:0;display:none}
+.scr.on{display:block}
+
+/* kopregel */
+#kop{left:0;top:0;width:1280px;height:40px;z-index:10;display:flex;align-items:center;gap:10px;padding:0 10px 0 12px;color:#EEF0F2;
+  background:linear-gradient(#2B3036,#1C2024);border-bottom:2px solid #000}
+#kop .titel{font:700 19px var(--cond);letter-spacing:1.5px;display:flex;align-items:center;gap:8px}
+#kop .titel em{font-style:normal;color:#9FB8D3}
+.chip{height:28px;display:flex;align-items:center;gap:7px;padding:0 10px;border:1px solid #545B62;border-radius:3px;
+  background:linear-gradient(#3A4047,#2D3238);font:600 14px var(--cond);letter-spacing:.6px;color:#EEF0F2}
+.led{width:10px;height:10px;border-radius:50%;flex:none;box-shadow:inset 0 -1px 2px rgba(0,0,0,.45),0 0 5px currentColor}
+#chipUser{cursor:pointer;min-width:220px}
+#chipUser.gast{background:linear-gradient(#5b4a10,#463909);border-color:#8a7419}
+#chipUser small{font-weight:500;color:#AEB6BE}
+#klok{font:700 17px var(--cond);letter-spacing:.6px;font-variant-numeric:tabular-nums;min-width:150px;text-align:right}
+
+/* alarmregel */
+#alarm{left:0;top:40px;width:1280px;height:30px;z-index:10;display:flex;align-items:center;gap:10px;padding:0 6px 0 0;border-bottom:1px solid #000;font-weight:600;font-size:15px}
+#alarm.W{background:var(--warn);color:#000}
+#alarm.S{background:var(--err);color:#fff}
+#alarm.I{background:#CFE0F2;color:#0D3A66}
+#alarm.rust{background:#B6BABE;color:#3A3F44}
+#alarm .streep{width:34px;height:30px;background:repeating-linear-gradient(-45deg,#000 0 7px,var(--warn) 7px 14px)}
+#alarm.S .streep{background:repeating-linear-gradient(-45deg,#000 0 7px,var(--err) 7px 14px)}
+#alarm.I .streep,#alarm.rust .streep{background:repeating-linear-gradient(-45deg,#8E9399 0 7px,#B6BABE 7px 14px)}
+#alarmTeller{min-width:28px;height:22px;display:flex;align-items:center;justify-content:center;background:#B00;color:#fff;font:700 14px var(--cond)}
+#alarm.knipper #alarmTeller{animation:knip 1s steps(1) infinite}
+@keyframes knip{50%{background:#000}}
+
+/* panelen */
+.pnl{background:linear-gradient(#E7E9EB,#DCDEE0);border:1px solid #868C93;border-radius:4px;overflow:hidden;
+  box-shadow:inset 0 1px 0 #fff,0 2px 4px rgba(0,0,0,.14)}
+.pnl-titel{height:28px;display:flex;align-items:center;gap:10px;padding:0 10px;color:#fff;border-left:4px solid var(--accent);
+  background:linear-gradient(#59626C,#454D56);font:700 15px var(--cond);letter-spacing:1.3px}
+.pnl-titel .r{margin-left:auto;display:flex;gap:6px;align-items:center}
+.label{font:600 13px var(--cond);color:var(--tekst2);letter-spacing:.8px}
+.waarde{font-weight:600;font-variant-numeric:tabular-nums}
+.getal{font:700 30px var(--cond);font-variant-numeric:tabular-nums;line-height:1}
+.rij{display:flex;justify-content:space-between;align-items:center;height:30px;border-bottom:1px solid #C3C7CB;padding:0 12px}
+.rij:last-child{border-bottom:0}
+
+/* knoppen */
+.knop{position:relative;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;font:700 15px var(--cond);letter-spacing:.8px;color:var(--tekst);
+  border:1px solid #737A82;border-radius:3px;background:linear-gradient(#F0F1F2,#C7CBCF);box-shadow:inset 0 1px 0 #fff,0 2px 0 #737A82}
+.knop:active{transform:translateY(2px);box-shadow:inset 0 1px 0 #fff,0 0 0 #737A82}
+.knop.groot{height:58px;font-size:18px}
+.knop .lamp{width:14px;height:14px;border-radius:50%;border:1px solid #333;background:#7A7F85;box-shadow:inset 0 -2px 3px rgba(0,0,0,.35)}
+.knop.blauw{background:linear-gradient(#3A82CB,#1E5E9E);color:#fff;border-color:#123F6C;box-shadow:inset 0 1px 0 #8DBBE8,0 2px 0 #123F6C}
+.knop.locked{color:#868C92}
+.knop.locked::after{content:"";position:absolute;right:4px;top:4px;width:13px;height:13px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23505760' stroke-width='2.6'%3E%3Crect x='5' y='11' width='14' height='10' rx='1'/%3E%3Cpath d='M8 11V7a4 4 0 0 1 8 0v4'/%3E%3C/svg%3E") no-repeat center/contain}
+.knop.blauw.locked{color:#B9CDE3}
+
+/* tabs */
+.tabs{position:absolute;left:10px;top:80px;height:36px;display:flex;gap:6px}
+.tab{height:36px;padding:0 20px;display:flex;align-items:center;gap:8px;cursor:pointer;font:700 15px var(--cond);letter-spacing:1px;
+  border:1px solid #737A82;border-radius:3px;background:linear-gradient(#ECEEF0,#CDD1D5);box-shadow:inset 0 1px 0 #fff}
+.tab.on{background:linear-gradient(#3A82CB,#1E5E9E);color:#fff;border-color:#123F6C;box-shadow:inset 0 1px 0 #8DBBE8}
+.badge{min-width:22px;height:20px;padding:0 6px;border-radius:10px;background:#B00;color:#fff;font:700 13px var(--cond);display:inline-flex;align-items:center;justify-content:center}
+
+/* tabellen */
+.tbl{width:100%;border-collapse:collapse;font-size:15px}
+.tbl th{height:32px;text-align:left;padding:0 10px;background:linear-gradient(#D5D8DB,#C3C7CB);border-bottom:1px solid #8E949A;font:700 13px var(--cond);letter-spacing:.9px;color:#3A3F44}
+.tbl td{height:42px;padding:0 10px;border-bottom:1px solid #C3C7CB;font-variant-numeric:tabular-nums}
+.tbl tr.sel td{background:#CBDDF0}
+.tbl tbody tr{cursor:pointer}
+.st{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px;border-radius:2px;font:700 13px var(--cond);letter-spacing:.7px}
+.voortgang{height:10px;background:#fff;border:1px solid #8E949A;border-radius:2px;overflow:hidden}
+.voortgang i{display:block;height:100%;background:var(--accent)}
+
+/* magazijn */
+.stelling{position:absolute;width:470px;height:218px;background:var(--staal);border:1px solid #3d4146;border-radius:2px}
+.vak{position:absolute;width:50px;height:34px;display:flex;align-items:center;justify-content:center;font:700 15px var(--cond);border:1px solid #9a9ea3;border-radius:2px;transition:background-color .4s}
+.mast{position:absolute;width:4px;height:226px;background:var(--kraan);box-shadow:0 0 0 1px #6b430c;pointer-events:none}
+.slede{position:absolute;width:54px;height:38px;border:3px solid var(--kraan);border-radius:2px;background:rgba(239,159,39,.18);pointer-events:none}
+.rail{position:absolute;height:4px;background:#3d4146}
+.band{position:absolute;height:18px;border:1px solid #3d4146;border-radius:2px;background:repeating-linear-gradient(90deg,#8E9399 0 10px,#5E6369 10px 12px);overflow:hidden}
+.pallet{position:absolute;top:2px;width:22px;height:12px;background:var(--kraan);border:1px solid #6b430c;animation:loop 7s linear infinite}
+.stil .pallet{animation-play-state:paused}
+@keyframes loop{from{left:-24px}to{left:100%}}
+.balk{height:16px;background:#fff;border:1px solid #6E737A;position:relative;border-radius:2px}
+.balk i{position:absolute;left:0;top:0;bottom:0;background:#5E6369}
+.balk b{position:absolute;top:-3px;bottom:-3px;width:2px;background:#C00}
+.leg{display:flex;align-items:center;gap:8px;font-size:14px;height:22px}
+.leg span{width:22px;height:14px;border:1px solid #9a9ea3;border-radius:2px}
+
+/* fabriek */
+.mach{position:absolute;width:130px;height:62px;background:linear-gradient(#F7F8F8,#E6E8EA);border:1px solid #737A82;border-radius:3px;box-shadow:0 2px 0 #9AA0A6;overflow:hidden}
+.mach .h{height:24px;display:flex;align-items:center;gap:6px;padding:0 8px;background:linear-gradient(#59626C,#454D56);color:#fff;font:700 13px var(--cond);letter-spacing:.6px;white-space:nowrap}
+.mach .v{padding:6px 8px;font-size:15px;font-weight:600}
+.mach.W{border-color:#B08C00;box-shadow:0 0 0 2px var(--warn)}
+.mach.S{border-color:#900;box-shadow:0 0 0 2px var(--err)}
+.flow-bg{fill:none;stroke:#7C838A;stroke-width:8;stroke-linejoin:round}
+.flow{fill:none;stroke:var(--kraan);stroke-width:3;stroke-dasharray:4 12;stroke-linejoin:round;animation:dash .8s linear infinite}
+.stil .flow{animation-play-state:paused;opacity:.35}
+@keyframes dash{to{stroke-dashoffset:-16}}
+.tegel{position:absolute;height:86px;padding:10px 14px}
+
+/* f-toetsen */
+#ftoetsen{left:0;top:750px;width:1280px;height:50px;z-index:10;display:flex;gap:6px;padding:5px 6px;background:linear-gradient(#353A40,#262A2F);border-top:2px solid #000}
+#ftoetsen .knop{flex:1;font-size:16px}
+#ftoetsen .knop small{font:600 12px var(--cond);color:#5A6068}
+#ftoetsen .knop.blauw small{color:#cfe2f6}
+
+/* aanmelden */
+#scrim{position:absolute;inset:0;z-index:50;background:rgba(12,14,17,.62);display:none}
+#scrim.on{display:block}
+.modal{position:absolute;left:330px;top:150px;width:620px;height:470px}
+.gebr{height:52px;display:flex;align-items:center;gap:12px;padding:0 14px;margin-bottom:8px;cursor:pointer;border:1px solid #9AA0A6;border-radius:3px;background:#F3F4F5}
+.gebr.on{border-color:var(--accent);background:#D7E6F5;box-shadow:inset 4px 0 0 var(--accent)}
+.gebr b{font:700 17px var(--cond);letter-spacing:.5px}
+.gebr small{display:block;color:var(--tekst2);font-size:13px}
+.pin{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pin .knop{height:54px;font-size:24px}
+.dots{display:flex;gap:14px;justify-content:center;height:40px;align-items:center}
+.dots i{width:16px;height:16px;border-radius:50%;border:2px solid #4A4F55}
+.dots i.vol{background:#1A1D20}
+
+#toast{position:absolute;left:640px;top:680px;transform:translateX(-50%);z-index:60;display:none;align-items:center;gap:10px;padding:10px 18px;
+  background:#22272C;color:#fff;border-left:5px solid var(--err);border-radius:3px;font-weight:600;box-shadow:0 6px 16px rgba(0,0,0,.4)}
+#toast.ok{border-left-color:var(--ok)}
+@media (prefers-reduced-motion:reduce){.pallet,.flow{animation:none}#alarm.knipper #alarmTeller{animation:none}}
+</style>
+</head>
+<body>
+<div id="fit">
+<div id="paneel">
+  <div class="schroef" style="left:12px;top:12px"></div><div class="schroef" style="right:12px;top:12px"></div>
+  <div class="schroef" style="left:12px;bottom:12px"></div><div class="schroef" style="right:12px;bottom:12px"></div>
+  <div class="merk">TOUCH PANEL 12"</div>
+  <div class="led-run"><i></i>RUN</div>
+
+  <div id="scherm" role="application" aria-label="Industriële HMI voor het magazijn, 1280 bij 800 pixels, met zes schermen achter de functietoetsen en gebruikersbeheer.">
+    <div id="scr1" class="scr"></div>
+    <div id="scr2" class="scr"></div>
+    <div id="scr3" class="scr"></div>
+    <div id="scr4" class="scr"></div>
+    <div id="scr5" class="scr"></div>
+    <div id="scr6" class="scr"></div>
+
+    <div id="kop" class="abs">
+      <span class="titel"><span id="kopIcoon"></span>MAGAZIJN <em id="kopScherm">· OVERZICHT</em></span>
+      <span style="flex:1"></span>
+      <span class="chip"><span class="led" id="ledModus"></span><span id="txtModus">AUTO</span></span>
+      <span class="chip"><span class="led" style="background:#5CE05C;color:#5CE05C"></span>PLC</span>
+      <span class="chip" title="MES-server (laptop) via OPC UA"><span class="led" id="ledMes"></span>MES</span>
+      <span class="chip" id="chipUser"></span>
+      <span id="klok">--</span>
+    </div>
+
+    <div id="alarm" class="abs rust">
+      <span class="streep"></span>
+      <span id="alarmTeller">0</span>
+      <span id="alarmTekst">Geen actieve meldingen</span>
+      <span style="flex:1"></span>
+      <span class="knop" id="btnBevestig" style="height:24px;padding:0 14px;font-size:14px">BEVESTIGEN</span>
+    </div>
+
+    <div id="ftoetsen" class="abs"></div>
+    <div id="toast"></div>
+
+    <div id="scrim">
+      <div class="modal pnl">
+        <div class="pnl-titel"><span id="loginIcoon"></span>AANMELDEN<span class="r" style="font-weight:500;letter-spacing:.4px">Automatisch afmelden na 5 min</span></div>
+        <div style="display:grid;grid-template-columns:1fr 250px;gap:18px;padding:16px">
+          <div>
+            <div class="label" style="margin-bottom:8px">GEBRUIKER</div>
+            <div id="loginLijst"></div>
+          </div>
+          <div>
+            <div class="label">PINCODE</div>
+            <div class="dots" id="dots"><i></i><i></i><i></i><i></i></div>
+            <div class="pin" id="pin"></div>
+            <div id="loginFout" style="height:22px;margin-top:8px;color:var(--err);font-weight:600;text-align:center"></div>
+          </div>
+        </div>
+        <div style="position:absolute;left:16px;right:16px;bottom:14px;display:flex;gap:10px;align-items:center">
+          <span style="font-size:13px;color:var(--tekst2)">Demo-PIN: Operator 1111 / 1212 · Technicus 2222 · Beheerder 3333</span>
+          <span style="flex:1"></span>
+          <span class="knop" id="btnAfmelden" style="height:40px;padding:0 18px">AFMELDEN</span>
+          <span class="knop" id="btnSluit" style="height:40px;padding:0 18px">SLUITEN</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+/* ===================== hulpfuncties ===================== */
+const $=id=>document.getElementById(id);
+const z=n=>String(n).padStart(2,'0');
+const tijd=d=>d?z(d.getHours())+':'+z(d.getMinutes())+':'+z(d.getSeconds()):'';
+const datum=d=>z(d.getDate())+'-'+z(d.getMonth()+1);
+const nl=n=>n.toLocaleString('nl-NL');
+const ICON={
+  fabriek:'M3 21V10l5 3V10l5 3V6l8 4v11zM7 17h2M12 17h2M17 17h2',
+  magazijn:'M3 21V8l9-5 9 5v13M7 21v-8h10v8M7 17h10',
+  orders:'M9 3h6v3H9zM7 4H5v17h14V4h-2M8 11h8M8 15h8M8 19h5',
+  kraan:'M5 21V3h3v18M8 5h12M8 9h6M16 5v6M14 11h4v4h-4zM3 21h18',
+  alarm:'M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21a2 2 0 0 0 4 0',
+  diagnose:'M3 12h4l3-7 4 14 3-7h4',
+  user:'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',
+  lock:'M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4',
+  play:'M7 4l13 8-13 8z', stop:'M6 6h12v12H6z',
+  reset:'M4 12a8 8 0 1 0 2.5-5.8M4 4v5h5',
+  hand:'M8 13V5.5a1.5 1.5 0 0 1 3 0V11M11 11V4.5a1.5 1.5 0 0 1 3 0V11M14 11V5.5a1.5 1.5 0 0 1 3 0V14c0 4-2.5 7-6 7-3 0-4.5-1.5-6-4l-1.8-3.6a1.5 1.5 0 0 1 2.6-1.4L8 13',
+  check:'M4 12l5 5L20 6', plus:'M12 5v14M5 12h14', pauze:'M8 5v14M16 5v14', x:'M6 6l12 12M18 6L6 18',
+  pijlL:'M15 5l-7 7 7 7', pijlR:'M9 5l7 7-7 7', pijlO:'M5 9l7-7 7 7M12 2v20', pijlB:'M5 15l7 7 7-7M12 2v20'
+};
+const VUL={play:1,stop:1};
+const ic=(n,s=18)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="${VUL[n]?'currentColor':'none'}" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICON[n]}"/></svg>`;
+function el(tag,cls,css,html,par){const d=document.createElement(tag);if(cls)d.className=cls;if(css)d.style.cssText=css;if(html!=null)d.innerHTML=html;if(par)par.appendChild(d);return d}
+function pnl(par,x,y,w,h,titel){return el('div','abs pnl',`left:${x}px;top:${y}px;width:${w}px;height:${h}px`,`<div class="pnl-titel">${titel}</div>`,par)}
+let s=11;const rnd=()=>{s=(s*9301+49297)%233280;return s/233280};
+const nader=(a,b,st)=>Math.abs(b-a)<=st?b:a+Math.sign(b-a)*st;
+function toast(t,ok){const e=$('toast');e.className=ok?'ok':'';e.innerHTML=ic(ok?'check':'lock',18)+t;e.style.display='flex';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',2600)}
+
+/* ===================== gebruikers en rechten ===================== */
+const ROLLEN=['Gast','Operator','Technicus','Beheerder'];
+const NIV={Gast:0,Operator:1,Technicus:2,Beheerder:3};
+const RECHTEN=[
+  ['bekijken','Schermen bekijken',0],
+  ['bedienen','Installatie starten / stoppen',1],
+  ['alarm','Meldingen bevestigen',1],
+  ['orders','Orders starten / pauzeren (orders komen uit het MES)',1],
+  ['hand','Handbedrijf, kraan verfahren',2],
+  ['reset','Storingen resetten',2],
+  ['annuleren','Order annuleren',2],
+  ['service','Onderhoudsteller resetten',2],
+  ['gebruikers','Gebruikers beheren',3]];
+const NODIG=Object.fromEntries(RECHTEN.map(r=>[r[0],r[2]]));
+const users=[
+  {naam:'Operator 1',rol:'Operator',pin:'1111',actief:true,laatst:'31-10 06:02'},
+  {naam:'Operator 2',rol:'Operator',pin:'1212',actief:true,laatst:'30-10 22:01'},
+  {naam:'Technicus',rol:'Technicus',pin:'2222',actief:true,laatst:'31-10 09:15'},
+  {naam:'Beheerder',rol:'Beheerder',pin:'3333',actief:true,laatst:'28-10 13:40'}];
+let user=null,idle=0;const LOGOFF=300;
+const niveau=()=>user?NIV[user.rol]:0;
+const heeft=r=>niveau()>=NODIG[r];
+const logboek=[];
+function log(t){logboek.unshift({tijd:new Date(),wie:user?user.naam:'Systeem',t})}
+function actie(e,recht,fn){e.dataset.recht=recht;e.addEventListener('click',()=>{
+  if(!heeft(recht)){toast('Geen rechten — '+ROLLEN[NODIG[recht]]+' vereist');openLogin();return}idle=0;fn()})}
+function rechtenVernieuwen(){
+  document.querySelectorAll('[data-recht]').forEach(e=>e.classList.toggle('locked',!heeft(e.dataset.recht)));
+  const c=$('chipUser');c.classList.toggle('gast',!user);
+  c.innerHTML=ic('user',16)+(user?`${user.naam} <small>${user.rol.toUpperCase()}</small><span style="margin-left:auto;font-weight:500;color:#AEB6BE" id="logoff"></span>`:'NIET AANGEMELD <small>TIK OM AAN TE MELDEN</small>');
+}
+
+/* ===================== procesdata (simulatie) ===================== */
+const PROD={1:['Base blauw','#185FA5'],2:['Lid blauw','#85B7EB'],11:['Base groen','#3B6D11'],12:['Lid groen','#97C459']};
+const KLEUR={0:['#ECECE9','#8E9399'],1:['#185FA5','#fff'],2:['#85B7EB','#042C53'],3:['#3B6D11','#fff'],4:['#97C459','#042C53'],9:['#E24B4A','#fff']};
+const weergave=v=>!v.b?0:({1:1,2:2,11:3,12:4}[v.t]||9);
+const G=[
+ {n:'GANG BLAUW',k:'K1',top:80,t:[1,2],r:[{n:'LINKS',b:100,x0:30,y0:130},{n:'RECHTS',b:200,x0:518,y0:130}]},
+ {n:'GANG GROEN',k:'K2',top:390,t:[11,12],r:[{n:'LINKS',b:300,x0:30,y0:440},{n:'RECHTS',b:400,x0:518,y0:440}]}];
+const V={};let seq=0;
+G.forEach(g=>g.r.forEach(r=>{for(let i=1;i<=54;i++){const nr=r.b+i,v={b:rnd()<0.45,t:g.t[rnd()<0.5?0:1],res:false,seq:++seq};if(v.b&&rnd()<0.08)v.res=true;V[nr]=v}}));
+V[137]={b:true,t:0,res:false,seq:0};
+let modus='AUTO',inT=24,uitT=18,laatste='—';
+const auto=()=>modus==='AUTO';
+const prodUur=[38,41,44,36,40,43,39,24];
+const K=[
+ {gi:0,naam:'K1',ri:0,cx:1,cy:1,tx:1,ty:1,fase:'gereed',job:null,next:0,cycli:48213,svc:4213,km:1287.4,vx:0,vy:0},
+ {gi:1,naam:'K2',ri:0,cx:1,cy:1,tx:1,ty:1,fase:'gereed',job:null,next:1500,cycli:39877,svc:2877,km:1102.9,vx:0,vy:0}];
+
+let orders=[
+ {nr:'ORD-4711',klant:'Klant Noord',p:1,aantal:12,gepickt:7,dock:1,prio:'Hoog',status:'Bezig',door:'MES',tijd:'07:42'},
+ {nr:'ORD-4712',klant:'Klant Zuid',p:12,aantal:8,gepickt:2,dock:2,prio:'Normaal',status:'Bezig',door:'MES',tijd:'08:10'},
+ {nr:'ORD-4713',klant:'Klant West',p:2,aantal:10,gepickt:0,dock:1,prio:'Normaal',status:'Wachtend',door:'MES',tijd:'09:31'},
+ {nr:'ORD-4714',klant:'Klant Oost',p:11,aantal:6,gepickt:0,dock:2,prio:'Laag',status:'Wachtend',door:'MES',tijd:'10:05'},
+ {nr:'ORD-4710',klant:'Klant Noord',p:11,aantal:9,gepickt:9,dock:2,prio:'Normaal',status:'Gereed',door:'MES',tijd:'06:20'},
+ {nr:'ORD-4709',klant:'Klant Midden',p:1,aantal:15,gepickt:15,dock:1,prio:'Hoog',status:'Gereed',door:'MES',tijd:'05:48'}];
+let orderNr=4715,orderSel='ORD-4711';
+function orderPick(t){const o=orders.find(o=>o.status==='Bezig'&&o.p===t);if(!o)return;o.gepickt++;
+  if(o.gepickt>=o.aantal)o.status='Gereed';orderActiveren()}
+const gangVan=p=>p<10?1:2;
+let mesOnline=true,mesLeven=0,mesVandaag=6,mesVolgende=Date.now()+25000;
+function orderActiveren(){[1,2].forEach(g=>{const lijst=orders.filter(o=>gangVan(o.p)===g);
+  if(lijst.some(o=>o.status==='Bezig'))return;const w=lijst.filter(o=>o.status==='Wachtend').sort((a,b)=>({Hoog:1,Normaal:2,Laag:3}[a.prio])-({Hoog:1,Normaal:2,Laag:3}[b.prio]))[0];if(w)w.status='Bezig'})}
+function mesOrder(){const ps=[1,2,11,12],pp=ps[Math.floor(rnd()*4)],nr='ORD-'+(orderNr++);
+  orders.unshift({nr,klant:['Klant Noord','Klant Zuid','Klant West','Klant Oost'][Math.floor(rnd()*4)],p:pp,aantal:4+Math.floor(rnd()*10),gepickt:0,dock:pp<10?1:2,prio:rnd()<.2?'Hoog':'Normaal',status:'Wachtend',door:'MES',tijd:tijd(new Date()).slice(0,5)});
+  mesVandaag++;logboek.unshift({tijd:new Date(),wie:'MES',t:'Order '+nr+' ontvangen'});orderActiveren();toast('Nieuwe order '+nr+' ontvangen van MES',true)}
+
+/* meldingen */
+const KLASSE={S:['STORING','#D93636','#fff'],W:['WAARSCHUWING','#F2C200','#000'],I:['INFO','#2A71B8','#fff']};
+const alarms=[];let alarmKey=0;
+const vandaag=(h,m,sec)=>{const d=new Date();d.setHours(h,m,sec,0);return d};
+function alarmKomt(id,k,tekst,komt=new Date()){alarms.unshift({key:++alarmKey,id,k,tekst,komt,gaat:null,bev:null,door:''})}
+function alarmGaat(id){const a=alarms.find(a=>a.id===id&&!a.gaat);if(a)a.gaat=new Date()}
+const alarmLoopt=id=>alarms.some(a=>a.id===id&&!a.gaat);
+const isActief=a=>!(a.gaat&&a.bev);
+function bevestig(a){if(a&&!a.bev){a.bev=new Date();a.door=user?user.naam:'';log('Melding '+a.id+' bevestigd')}}
+[['S-301','S','Noodstop gang groen bediend',[6,41,10],[6,44,2],[6,43,30],'Technicus'],
+ ['W-221','W','Kraan K2 — vorksensor vervuild',[8,5,12],[8,6,40],[8,5,50],'Operator 1'],
+ ['S-118','S','Kraan K1 — rijas positiefout',[9,12,3],[9,20,44],[9,13,1],'Technicus'],
+ ['S-501','S','MES-verbinding verbroken (geen levensteken)',[7,10,5],[7,12,40],[7,11,2],'Operator 1']]
+ .forEach(([id,k,t,a,b,c,w])=>alarms.push({key:++alarmKey,id,k,tekst:t,komt:vandaag(...a),gaat:vandaag(...b),bev:vandaag(...c),door:w}));
+alarmKomt('I-212','I','Wikkelaar — folierol bijna leeg (8 %)',new Date(Date.now()-300000));
+alarmKomt('W-104','W','Vak 137 — product onbekend (Soort 0)',new Date(Date.now()-90000));
+let w221Volgende=Date.now()+30000,w221Gaat=0;
+logboek.push({tijd:vandaag(6,2,0),wie:'Operator 1',t:'Aangemeld'},{tijd:vandaag(5,58,12),wie:'Operator 2',t:'Afgemeld'});
+logboek.sort((a,b)=>b.tijd-a.tijd);
+
+/* ===================== kraanlogica ===================== */
+function nieuweJob(k){const g=G[k.gi];
+  for(let p=0;p<20;p++){const ri=rnd()<.5?0:1,x=1+Math.floor(rnd()*9),y=1+Math.floor(rnd()*6),nr=g.r[ri].b+(y-1)*9+x,v=V[nr];
+    if(v.b&&v.t===0)continue;k.ri=ri;k.tx=x;k.ty=y;k.job={nr,inslag:!v.b};k.fase='rijden';return}}
+function voerUit(k){const {nr,inslag}=k.job,v=V[nr],g=G[k.gi];if(v.b&&v.t===0)return;
+  if(inslag&&!v.b){v.b=true;v.t=g.t[rnd()<.5?0:1];v.seq=++seq;inT++;prodUur[7]++}
+  else if(!inslag&&v.b){const t=v.t;v.b=false;uitT++;orderPick(t)}
+  v.res=false;paintVak(nr);laatste=tijd(new Date())+'  '+k.naam+' '+(inslag?'inslag':'uitslag')+' vak '+nr}
+function kraanTick(k,now){const ox=k.cx,oy=k.cy;
+  if(k.fase==='rijden'){k.cx=nader(k.cx,k.tx,.2);k.cy=nader(k.cy,k.ty,.12);
+    if(k.cx===k.tx&&k.cy===k.ty){if(k.job){k.fase='vork';k.t0=now}else k.fase='gereed'}}
+  else if(k.fase==='vork'&&now-k.t0>700){voerUit(k);k.fase='gereed';k.job=null;k.next=now+1200;k.cycli++;k.svc++}
+  else if(k.fase==='gereed'&&auto()&&now>=k.next)nieuweJob(k);
+  k.vx=Math.abs(k.cx-ox)*1.35*20;k.vy=Math.abs(k.cy-oy)*1.1*20;k.km+=Math.abs(k.cx-ox)*1.35/1000}
+const opdrachtTekst=k=>k.job?(k.job.inslag?'▶ Inslag':'◀ Uitslag')+' → vak '+k.job.nr:(k.fase==='rijden'?'Handverplaatsing':'Gereed');
+
+/* ===================== F2 MAGAZIJN ===================== */
+const cells={};
+function paintVak(nr){const d=cells[nr];if(!d)return;const v=V[nr],[bg,fg]=KLEUR[weergave(v)];
+  d.style.backgroundColor=bg;d.style.color=fg;d.style.border=v.res?'3px solid #EF9F27':'1px solid #9a9ea3'}
+function bouwMagazijn(){const S=$('scr2');
+  G.forEach((g,gi)=>{
+    const p=pnl(S,10,g.top,1000,300,`<span>${g.n}</span><span class="chip" style="height:22px;font-size:13px">KRAAN ${g.k}</span><span id="st${gi}" style="font:500 15px var(--font);letter-spacing:0">Gereed</span>`);
+    g.masts=[];
+    g.r.forEach(r=>{
+      el('div','abs label',`left:${r.x0}px;top:${r.y0-20}px`,`${r.n}  ${r.b+1} – ${r.b+54}`,S);
+      el('div','stelling',`left:${r.x0-2}px;top:${r.y0-2}px`,'',S);
+      for(let y=1;y<=6;y++)for(let x=1;x<=9;x++){const nr=r.b+(y-1)*9+x;
+        cells[nr]=el('div','vak',`left:${r.x0+(9-x)*52}px;top:${r.y0+(6-y)*36}px`,nr,S);paintVak(nr)}
+      el('div','rail',`left:${r.x0-2}px;top:${r.y0-8}px;width:470px`,'',S);
+      el('div','rail',`left:${r.x0-2}px;top:${r.y0+218}px;width:470px`,'',S);
+      g.masts.push({mast:el('div','mast',`top:${r.y0-4}px`,'',S),slede:el('div','slede','',null,S),r});
+    });
+    const yb=g.top+272;
+    el('div','abs label',`left:30px;top:${yb+1}px`,'INVOER',S);
+    g.banden=[el('div','band',`left:90px;top:${yb}px;width:400px`,`<div class="pallet" style="animation-delay:${-gi*2}s"></div><div class="pallet" style="animation-delay:${-3.5-gi*2}s"></div>`,S)];
+    el('div','abs label',`left:518px;top:${yb+1}px`,'UITVOER',S);
+    g.banden.push(el('div','band',`left:588px;top:${yb}px;width:400px`,`<div class="pallet" style="animation-delay:${-1-gi}s;animation-duration:8s"></div>`,S));
+  });
+  const zb=pnl(S,1020,80,250,610,"BEZETTING");
+  zb.innerHTML+=`<div id="mKpi" style="padding:8px 10px 4px"></div>
+   <div class="pnl-titel">DOORVOER</div>
+   <div style="padding:6px 12px;display:grid;grid-template-columns:1fr 1fr"><div><div class="label">INSLAG</div><div class="getal" id="mIn"></div></div><div><div class="label">UITSLAG</div><div class="getal" id="mUit"></div></div></div>
+   <div class="pnl-titel">OUDSTE PRODUCT</div>
+   <div style="padding:6px 12px"><div style="font:700 19px var(--cond)" id="mOud"></div><div style="font-size:13px;color:var(--tekst2)">FIFO — eerst uitslaan</div></div>
+   <div class="pnl-titel">BEDIENING</div>
+   <div id="mBed" style="padding:10px;display:grid;grid-template-columns:1fr 1fr;gap:10px"></div>
+   <div class="pnl-titel">LEGENDA</div>
+   <div style="padding:6px 12px;display:grid;grid-template-columns:1fr 1fr;column-gap:6px">
+    <div class="leg"><span style="background:#ECECE9"></span>Leeg</div><div class="leg"><span style="background:#E24B4A"></span>Storing</div>
+    <div class="leg"><span style="background:#185FA5"></span>Base</div><div class="leg"><span style="background:#85B7EB"></span>Lid</div>
+    <div class="leg"><span style="background:#3B6D11"></span>Base</div><div class="leg"><span style="background:#97C459"></span>Lid</div>
+    <div class="leg" style="grid-column:span 2"><span style="background:#ECECE9;border:3px solid #EF9F27"></span>Gereserveerd</div></div>`;
+  const bed=$('mBed');
+  [['START','bedienen','lStart',()=>{modus='AUTO';log('Installatie gestart (AUTO)')}],
+   ['STOP','bedienen','lStop',()=>{modus='STOP';log('Installatie gestopt')}],
+   ['RESET','reset','lReset',()=>{let n=0;for(const nr in V)if(V[nr].b&&V[nr].t===0){V[nr].b=false;paintVak(nr);n++}log('Storing gereset ('+n+' vak)');toast('Storing gereset',true)}],
+   ['HAND','hand','lHand',()=>{modus='HAND';log('Handbedrijf ingeschakeld')}]]
+   .forEach(([t,r,id,fn])=>actie(el('div','knop groot','',`<span class="lamp" id="${id}"></span>${t}`,bed),r,()=>{fn();ververs()}));
+  pnl(S,10,700,1260,40,'').innerHTML=`<div style="display:flex;align-items:center;gap:26px;height:38px;padding:0 14px;font-size:15px">
+    <span><span class="label">K1</span>&nbsp; <b id="pos0"></b></span><span><span class="label">K2</span>&nbsp; <b id="pos1"></b></span>
+    <span style="width:1px;height:24px;background:#9a9ea3"></span><span class="label">LAATSTE ACTIE</span><span id="mLaatste"></span></div>`;
+}
+function kranenMagazijn(){K.forEach(k=>{const g=G[k.gi];
+  g.masts.forEach((m,i)=>{const on=i===k.ri;m.mast.style.display=m.slede.style.display=on?'block':'none';
+    if(on){m.mast.style.left=(m.r.x0+(9-k.cx)*52+23)+'px';m.slede.style.left=(m.r.x0+(9-k.cx)*52-2)+'px';m.slede.style.top=(m.r.y0+(6-k.cy)*36-2)+'px'}})})}
+function bezetting(gi){let n=0;G[gi].r.forEach(r=>{for(let i=1;i<=54;i++)if(V[r.b+i].b)n++});return Math.round(n/108*100)}
+function oudste(t){let o=null;for(const nr in V){const v=V[nr];if(v.b&&v.t!==0&&(t==null||v.t===t)&&(!o||v.seq<V[o].seq))o=nr}return o}
+function verversMagazijn(){
+  $('mKpi').innerHTML=G.map((g,gi)=>{const pc=bezetting(gi);return `<div style="display:flex;justify-content:space-between;font:700 16px var(--cond)"><span>${g.n.replace('GANG ','')}</span><span>${pc} %</span></div><div class="balk" style="margin:3px 0 8px"><i style="width:${pc}%;background:${pc>85?'#C00':'#5E6369'}"></i><b style="left:85%"></b></div>`}).join('');
+  $('mIn').textContent=inT;$('mUit').textContent=uitT;const o=oudste();$('mOud').textContent=o?'Vak '+o+' · '+PROD[V[o].t][0]:'—';
+  $('lStart').style.background=modus==='AUTO'?'#3FCB3F':'#7A7F85';$('lStop').style.background=modus==='STOP'?'#E03030':'#7A7F85';
+  $('lHand').style.background=modus==='HAND'?'#F2C200':'#7A7F85';$('lReset').style.background=alarmLoopt('W-104')?'#5AA0E8':'#7A7F85';
+  K.forEach((k,i)=>{$('st'+i).textContent=opdrachtTekst(k);$('pos'+i).textContent='X'+Math.round(k.cx)+' Y'+Math.round(k.cy)+' · '+(k.ri?'rechts':'links')});
+  $('mLaatste').textContent=laatste;G.forEach(g=>g.banden.forEach(b=>b.classList.toggle('stil',!auto())));
+}
+
+/* ===================== F1 FABRIEK ===================== */
+const M={};
+function bouwFabriek(){const S=$('scr1');
+  [['T1','PALLETS INGESLAGEN'],['T2','PALLETS UITGESLAGEN'],['T3','OEE VANDAAG'],['T4','BEZETTING MAGAZIJN']].forEach(([id,t],i)=>{
+    const p=el('div','abs pnl tegel',`left:${10+i*227}px;top:80px;width:217px`,`<div class="label">${t}</div><div class="getal" id="${id}" style="margin-top:8px"></div>`,S)});
+  pnl(S,10,176,900,564,'PRODUCTIESTROOM<span class="r" id="fStroom" style="font-weight:500"></span>');
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('width',1280);svg.setAttribute('height',800);svg.style.cssText='position:absolute;left:0;top:0;pointer-events:none';svg.id='fFlow';
+  const lijnen=['160,246 195,246','160,366 195,366','325,246 342,246 342,306 360,306','325,366 342,366 342,306','490,306 525,306','655,306 690,306',
+    '755,337 755,400 590,400 590,430','755,400 825,400 825,430','590,492 590,560','825,492 825,560','525,616 490,616','360,616 342,616 342,566 325,566','342,616 342,656 325,656'];
+  svg.innerHTML=lijnen.map(p=>`<polyline class="flow-bg" points="${p}"/>`).join('')+lijnen.map(p=>`<polyline class="flow" points="${p}"/>`).join('');
+  S.appendChild(svg);
+  const mach=[['L1','LIJN 1 · BASE',30,215],['L2','LIJN 2 · LID',30,335],['P1','PALLETISEERDER 1',195,215],['P2','PALLETISEERDER 2',195,335],
+    ['WK','WIKKELAAR',360,275],['SC','SCANNER',525,275],['VD','VERDELER',690,275],['IB','INVOER BLAUW',525,430],['IG','INVOER GROEN',760,430],
+    ['UV','UITVOER',360,585],['D1','DOCK 1',195,535],['D2','DOCK 2',195,625]];
+  mach.forEach(([id,n,x,y])=>M[id]=el('div','mach',`left:${x}px;top:${y}px`,`<div class="h"><span class="led" id="led${id}"></span>${n}</div><div class="v" id="v${id}"></div>`,S));
+  el('div','mach',`left:525px;top:560px;width:365px;height:112px`,`<div class="h"><span class="led" style="background:#3FC24A;color:#3FC24A"></span>MAGAZIJN · 2 GANGEN · 216 VAKKEN</div><div id="fMag" style="padding:8px 10px"></div>`,S);
+  const r=pnl(S,920,80,350,300,'PRODUCTIE PER UUR');el('div','',`padding:10px 12px`,'<svg id="fUur" width="326" height="250"></svg>',r);
+  pnl(S,920,390,350,170,'DIENST').innerHTML+=`<div class="rij"><span class="label">DIENST</span><span class="waarde">Vroeg · 06:00–14:00</span></div>
+    <div class="rij"><span class="label">AANGEMELD</span><span class="waarde" id="fUser"></span></div>
+    <div class="rij"><span class="label">ACTIEVE ORDERS</span><span class="waarde" id="fOrders"></span></div>
+    <div class="rij"><span class="label">MODUS</span><span class="waarde" id="fModus"></span></div>`;
+  pnl(S,920,570,350,170,'LIJNSNELHEID').innerHTML+=`<div id="fLijn" style="padding:10px 12px"></div>`;
+}
+let verdeler=0;
+function zetMach(id,st,tekst){const kl={loopt:['#3FC24A',''],stil:['#80868C',''],W:['#F2C200','W'],S:['#D93636','S']}[st];
+  const l=$('led'+id);l.style.background=kl[0];l.style.color=kl[0];M[id].className='mach '+kl[1];$('v'+id).textContent=tekst}
+function verversFabriek(){const a=auto(),lp=a?'loopt':'stil';verdeler^=1;
+  $('T1').textContent=inT;$('T2').textContent=uitT;$('T3').textContent='87,4 %';$('T4').textContent=Math.round((bezetting(0)+bezetting(1))/2)+' %';
+  $('fStroom').textContent=a?'IN BEDRIJF':'GESTOPT';$('fFlow').classList.toggle('stil',!a);$('scr1').classList.toggle('stil',!a);
+  zetMach('L1',lp,a?'12 st/min':'0 st/min');zetMach('L2',lp,a?'10 st/min':'0 st/min');
+  zetMach('P1',lp,a?'Laag 4 / 6':'Stil');zetMach('P2',lp,a?'Laag 2 / 6':'Stil');
+  zetMach('WK',alarmLoopt('I-212')?'W':lp,'Folie 8 %');zetMach('SC','loopt','Gelezen 99,2 %');
+  zetMach('VD',lp,a?(verdeler?'→ Gang blauw':'→ Gang groen'):'Stil');zetMach('IB',lp,a?'Band loopt':'Band stil');zetMach('IG',lp,a?'Band loopt':'Band stil');
+  zetMach('UV',lp,uitT+' pallets');
+  [1,2].forEach(d=>{const o=orders.find(o=>o.dock===d&&o.status==='Bezig');zetMach('D'+d,o?'loopt':'stil',o?o.nr+' laden':'Vrij')});
+  $('fMag').innerHTML=G.map((g,gi)=>{const pc=bezetting(gi);return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><span class="label" style="width:56px">${g.n.replace('GANG ','')}</span><div class="balk" style="flex:1"><i style="width:${pc}%"></i><b style="left:85%"></b></div><b style="width:44px;text-align:right">${pc} %</b></div>`}).join('')+`<div style="font-size:13px;color:var(--tekst2)">K1: ${opdrachtTekst(K[0])} · K2: ${opdrachtTekst(K[1])}</div>`;
+  const max=60,uren=['06','07','08','09','10','11','12','13'];
+  $('fUur').innerHTML=prodUur.map((v,i)=>{const h=Math.round(v/max*200),x=8+i*40;return `<rect x="${x}" y="${210-h}" width="28" height="${h}" fill="${i===7?'#2A71B8':'#7C838A'}" rx="2"/><text x="${x+14}" y="${204-h}" text-anchor="middle" font-family="Barlow Condensed,Arial" font-weight="700" font-size="14" fill="#1A1D20">${v}</text><text x="${x+14}" y="230" text-anchor="middle" font-family="Barlow Condensed,Arial" font-size="13" fill="#4A4F55">${uren[i]}</text>`}).join('')+
+    `<line x1="0" y1="${210-45/max*200}" x2="326" y2="${210-45/max*200}" stroke="#D93636" stroke-dasharray="5 4"/><text x="322" y="${205-45/max*200}" text-anchor="end" font-family="Barlow Condensed,Arial" font-size="12" fill="#D93636">DOEL 45</text><line x1="0" y1="210" x2="326" y2="210" stroke="#4A4F55"/>`;
+  $('fUser').textContent=user?user.naam+' ('+user.rol+')':'—';$('fOrders').textContent=orders.filter(o=>o.status==='Bezig').length;$('fModus').textContent=modus;
+  $('fLijn').innerHTML=[['LIJN 1 · BASE',a?12:0],['LIJN 2 · LID',a?10:0]].map(([n,v])=>`<div style="display:flex;justify-content:space-between" class="label"><span>${n}</span><b style="color:var(--tekst)">${v} / 14 st/min</b></div><div class="balk" style="margin:4px 0 14px"><i style="width:${v/14*100}%;background:#3B6D11"></i></div>`).join('');
+}
+
+/* ===================== F3 ORDERS ===================== */
+const STATUS={Bezig:['#2A71B8','#fff'],Wachtend:['#C3C7CB','#1A1D20'],Gepauzeerd:['#F2C200','#000'],Gereed:['#3B6D11','#fff'],Geannuleerd:['#80868C','#fff']};
+function bouwOrders(){const S=$('scr3');
+  const p=pnl(S,10,80,860,660,'ORDERS — VAN MES<span class="r" id="oTeller" style="font-weight:500"></span>');
+  el('div','',`height:556px;overflow:auto`,'<table class="tbl"><thead><tr><th>ORDER</th><th>KLANT</th><th>PRODUCT</th><th style="width:190px">VOORTGANG</th><th>DOCK</th><th>PRIO</th><th>STATUS</th></tr></thead><tbody id="oBody"></tbody></table>',p);
+  const b=el('div','',`position:absolute;left:10px;right:10px;bottom:10px;display:flex;gap:10px`,'',p);
+  el('div','',`flex:1.3;height:50px;display:flex;align-items:center;gap:10px;padding:0 12px;border:1px dashed #8E949A;border-radius:3px;font-size:14px;color:var(--tekst2);background:#EEF0F1`,
+     `<span class="led" id="oMesLed"></span><span id="oMesTekst"></span>`,b);
+  [['play','START','orders',()=>zetOrder(['Wachtend','Gepauzeerd'],'Bezig','gestart')],
+   ['pauze','PAUZE','orders',()=>zetOrder(['Bezig'],'Gepauzeerd','gepauzeerd')],
+   ['x','ANNULEREN','annuleren',()=>{zetOrder(['Wachtend','Gepauzeerd','Bezig'],'Geannuleerd','geannuleerd');orderActiveren()}]]
+   .forEach(([i,t,r,fn])=>actie(el('div','knop','height:50px;flex:1',ic(i,18)+t,b),r,()=>{fn();ververs()}));
+  pnl(S,880,80,390,660,'ORDERDETAIL').innerHTML+=`<div id="oDetail" style="padding:12px"></div>`;
+}
+function zetOrder(van,naar,woord){const o=orders.find(o=>o.nr===orderSel);if(!o)return;
+  if(!van.includes(o.status)){toast('Order '+o.nr+' is '+o.status.toLowerCase());return}o.status=naar;log('Order '+o.nr+' '+woord)}
+function verversOrders(){
+  $('oTeller').textContent=orders.filter(o=>o.status==='Bezig').length+' bezig · '+orders.filter(o=>o.status==='Wachtend').length+' wachtend · '+mesVandaag+' ontvangen vandaag';
+  $('oMesLed').style.background=$('oMesLed').style.color=mesOnline?'#3FC24A':'#D93636';
+  $('oMesTekst').innerHTML=mesOnline?'<b style="color:var(--tekst)">MES verbonden</b> · nieuwe orders komen automatisch binnen':'<b style="color:#B00">MES offline</b> · geen nieuwe orders';
+  $('oBody').innerHTML=orders.map(o=>{const [bg,fg]=STATUS[o.status],pc=Math.round(o.gepickt/o.aantal*100);
+    return `<tr data-nr="${o.nr}" class="${o.nr===orderSel?'sel':''}"><td><b>${o.nr}</b></td><td>${o.klant}</td>
+     <td><span style="display:inline-flex;align-items:center;gap:8px"><i style="width:14px;height:14px;background:${PROD[o.p][1]};border-radius:2px;display:inline-block"></i>${PROD[o.p][0]}</span></td>
+     <td><div style="display:flex;align-items:center;gap:8px"><div class="voortgang" style="flex:1"><i style="width:${pc}%;background:${o.status==='Gereed'?'#3B6D11':'#2A71B8'}"></i></div><span style="width:46px;text-align:right">${o.gepickt}/${o.aantal}</span></div></td>
+     <td>${o.dock}</td><td>${o.prio==='Hoog'?'<b style="color:#B00">Hoog</b>':o.prio}</td><td><span class="st" style="background:${bg};color:${fg}">${o.status.toUpperCase()}</span></td></tr>`}).join('');
+  const o=orders.find(o=>o.nr===orderSel);if(!o){$('oDetail').innerHTML='';return}
+  const vakken=Object.keys(V).filter(nr=>V[nr].b&&V[nr].t===o.p).sort((a,b)=>V[a].seq-V[b].seq).slice(0,6);
+  $('oDetail').innerHTML=`<div style="font:700 30px var(--cond)">${o.nr}</div><div style="color:var(--tekst2);margin-bottom:10px">${o.klant} · ontvangen van MES om ${o.tijd}</div>
+    <div class="rij" style="padding:0"><span class="label">PRODUCT</span><span class="waarde">${PROD[o.p][0]}</span></div>
+    <div class="rij" style="padding:0"><span class="label">AANTAL</span><span class="waarde">${o.gepickt} van ${o.aantal} pallets</span></div>
+    <div class="rij" style="padding:0"><span class="label">DOCK</span><span class="waarde">Dock ${o.dock}</span></div>
+    <div class="rij" style="padding:0"><span class="label">STATUS</span><span class="st" style="background:${STATUS[o.status][0]};color:${STATUS[o.status][1]}">${o.status.toUpperCase()}</span></div>
+    <div class="voortgang" style="height:16px;margin:14px 0 18px"><i style="width:${Math.round(o.gepickt/o.aantal*100)}%"></i></div>
+    <div class="label" style="margin-bottom:6px">PICKLIJST — FIFO (OUDSTE EERST)</div>
+    ${vakken.length?vakken.map((nr,i)=>`<div class="rij" style="padding:0 8px;background:${i?'transparent':'#CBDDF0'}"><span><b>Vak ${nr}</b></span><span style="color:var(--tekst2)">gang ${nr<300?'blauw':'groen'} · ${['links','rechts'][Math.floor(nr/100)%2?0:1]}</span><span class="waarde">${i===0?'volgende':'#'+(i+1)}</span></div>`).join(''):'<div style="color:var(--tekst2)">Geen voorraad beschikbaar</div>'}`;
+}
+
+/* ===================== F4 KRAAN ===================== */
+let kSel=0;const kCells=[];
+function bouwKraan(){const S=$('scr4');
+  const t=el('div','tabs','','',S);
+  K.forEach((k,i)=>{const e=el('div','tab'+(i?'':' on'),'',ic('kraan',16)+'KRAAN '+k.naam+' · '+G[i].n.replace('GANG ','GANG '),t);e.onclick=()=>{kSel=i;t.querySelectorAll('.tab').forEach((x,j)=>x.classList.toggle('on',j===i));ververs()}});
+  pnl(S,10,124,760,616,'<span id="kTitel"></span>');
+  const x0=60,y0=190;
+  el('div','stelling',`left:${x0-4}px;top:${y0-4}px;width:${9*66+4}px;height:${6*60+4}px`,'',S);
+  for(let y=1;y<=6;y++)for(let x=1;x<=9;x++)kCells.push(el('div','vak',`left:${x0+(9-x)*66}px;top:${y0+(6-y)*60}px;width:62px;height:56px;font-size:17px`,'',S));
+  for(let x=1;x<=9;x++)el('div','abs label',`left:${x0+(9-x)*66+26}px;top:${y0+364}px`,'X'+x,S);
+  for(let y=1;y<=6;y++)el('div','abs label',`left:${x0-34}px;top:${y0+(6-y)*60+20}px`,'Y'+y,S);
+  el('div','rail',`left:${x0-10}px;top:${y0-14}px;width:${9*66+16}px;height:6px`,'',S);
+  el('div','rail',`left:${x0-10}px;top:${y0+384}px;width:${9*66+16}px;height:6px`,'',S);
+  el('div','mast','height:396px;width:8px;top:'+(y0-14)+'px','',S).id='kMast';
+  el('div','slede','width:70px;height:64px;border-width:4px','',S).id='kSlede';
+  el('div','abs','height:8px;background:#6b430c;border-radius:1px;display:none','',S).id='kVork';
+  el('div','abs','left:30px;top:600px;width:720px',`<div id="kAssen"></div>`,S);
+  const r=pnl(S,780,124,490,616,'STATUS');
+  r.innerHTML+=`<div id="kStatus"></div><div class="pnl-titel">HANDBEDIENING<span class="r" id="kHandInfo" style="font-weight:500;letter-spacing:.3px"></span></div>
+    <div style="display:grid;grid-template-columns:repeat(3,70px);grid-template-rows:repeat(3,56px);gap:8px;padding:12px 12px 8px;justify-content:center" id="kJog"></div>
+    <div class="pnl-titel">ONDERHOUD</div><div id="kService" style="padding:8px 12px"></div>`;
+  const j=$('kJog'),pos={pijlO:[2,1],pijlL:[1,2],pijlR:[3,2],pijlB:[2,3]},d={pijlO:[0,1],pijlB:[0,-1],pijlL:[1,0],pijlR:[-1,0]};
+  Object.keys(pos).forEach(n=>{const e=el('div','knop',`grid-column:${pos[n][0]};grid-row:${pos[n][1]}`,ic(n,26),j);
+    actie(e,'hand',()=>{if(modus!=='HAND'){toast('Alleen mogelijk in HAND-modus');return}const k=K[kSel];if(k.job){toast('Kraan is bezig met een opdracht');return}
+      k.tx=Math.min(9,Math.max(1,Math.round(k.cx)+d[n][0]));k.ty=Math.min(6,Math.max(1,Math.round(k.cy)+d[n][1]));k.fase='rijden'})});
+  el('div','',`grid-column:2;grid-row:2;display:flex;align-items:center;justify-content:center;font:700 15px var(--cond);color:var(--tekst2)`,'JOG',j);
+  const sv=el('div','knop','height:42px;margin:10px 12px 0',ic('reset',16)+'ONDERHOUDSTELLER RESETTEN',r);
+  actie(sv,'service',()=>{K[kSel].svc=0;log('Onderhoudsteller '+K[kSel].naam+' gereset');toast('Onderhoudsteller gereset',true);ververs()});
+}
+function kraanTekenen(){const k=K[kSel],x0=60,y0=190,cx=x0+(9-k.cx)*66,cy=y0+(6-k.cy)*60;
+  $('kMast').style.left=(cx+27)+'px';$('kSlede').style.left=(cx-4)+'px';$('kSlede').style.top=(cy-4)+'px';
+  const v=$('kVork');v.style.display=k.fase==='vork'?'block':'none';v.style.left=(cx+6)+'px';v.style.top=(cy+42)+'px';v.style.width='50px'}
+function verversKraan(){const k=K[kSel],g=G[kSel],r=g.r[k.ri];
+  $('kTitel').textContent='ZIJAANZICHT — '+g.n+' · STELLING '+r.n+' ('+(r.b+1)+'–'+(r.b+54)+')';
+  kCells.forEach((d,i)=>{const nr=r.b+i+1,v=V[nr],[bg,fg]=KLEUR[weergave(v)];d.textContent=nr;d.style.backgroundColor=bg;d.style.color=fg;d.style.border=v.res?'3px solid #EF9F27':'1px solid #9a9ea3'});
+  const rx=Math.round((k.cx-1)*1350),hy=Math.round((k.cy-1)*1100);
+  $('kAssen').innerHTML=[['RIJAS X',rx,10800],['HEFAS Y',hy,5500]].map(([n,v,m])=>`<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px"><span class="label" style="width:70px">${n}</span><div class="balk" style="flex:1;height:20px"><i style="width:${v/m*100}%;background:#BA7517"></i></div><b style="width:100px;text-align:right;font-variant-numeric:tabular-nums">${nl(v)} mm</b></div>`).join('');
+  const fase={gereed:'Gereed',rijden:'Rijden',vork:'Vork uitgeschoven'}[k.fase];
+  $('kStatus').innerHTML=[['MODUS',modus],['FASE',fase],['OPDRACHT',opdrachtTekst(k)],['POSITIE','X'+Math.round(k.cx)+' · Y'+Math.round(k.cy)+' · '+(k.ri?'rechts':'links')],
+    ['SNELHEID RIJAS',k.vx.toFixed(1).replace('.',',')+' m/s'],['SNELHEID HEFAS',k.vy.toFixed(1).replace('.',',')+' m/s'],['LAST',k.job&&!k.job.inslag&&k.fase!=='vork'?'Leeg':(k.job?'Pallet':'Leeg')]]
+    .map(([a,b])=>`<div class="rij"><span class="label">${a}</span><span class="waarde">${b}</span></div>`).join('');
+  $('kHandInfo').textContent=modus==='HAND'?'Actief':'Alleen in HAND';
+  $('kService').innerHTML=`<div class="rij" style="padding:0"><span class="label">CYCLI TOTAAL</span><span class="waarde">${nl(k.cycli)}</span></div>
+    <div class="rij" style="padding:0"><span class="label">RIJAFSTAND</span><span class="waarde">${k.km.toFixed(1).replace('.',',')} km</span></div>
+    <div class="label" style="margin-top:8px">VOLGENDE SERVICE OVER ${nl(5000-k.svc)} CYCLI</div><div class="balk" style="margin-top:4px"><i style="width:${k.svc/50}%;background:${k.svc>4500?'#C00':'#5E6369'}"></i></div>`;
+}
+
+/* ===================== F5 MELDINGEN ===================== */
+let aTab='actief',aFilter='',aSel=null;
+function bouwAlarmen(){const S=$('scr5');
+  const t=el('div','tabs','','',S);
+  [['actief','ACTIEF'],['historie','HISTORIE'],['log','BEDIENINGSLOG']].forEach(([id,n])=>{const e=el('div','tab'+(id==='actief'?' on':''),'',n+(id==='actief'?' <span class="badge" id="aBadge"></span>':''),t);
+    e.onclick=()=>{aTab=id;t.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));e.classList.add('on');ververs()}});
+  const f=el('div','abs','left:560px;top:80px;display:flex;gap:6px','',S);
+  [['','ALLES'],['S','STORING'],['W','WAARSCHUWING'],['I','INFO']].forEach(([k,n])=>{const e=el('div','tab'+(k?'':' on'),'padding:0 12px',n,f);
+    e.onclick=()=>{aFilter=k;f.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));e.classList.add('on');ververs()}});
+  const b=el('div','abs','left:990px;top:80px;display:flex;gap:6px','',S);
+  actie(el('div','knop','height:36px;padding:0 12px',ic('check',16)+'BEVESTIGEN',b),'alarm',()=>{bevestig(alarms.find(a=>a.key===aSel));ververs()});
+  actie(el('div','knop','height:36px;padding:0 12px',ic('check',16)+'ALLES',b),'alarm',()=>{alarms.filter(a=>!a.bev).forEach(bevestig);ververs()});
+  const p=pnl(S,10,124,1260,616,'<span id="aTitel"></span>');
+  el('div','',`height:586px;overflow:auto`,'<table class="tbl"><thead id="aHead"></thead><tbody id="aBody"></tbody></table>',p);
+}
+function verversAlarmen(){
+  $('aBadge').textContent=alarms.filter(isActief).length;
+  if(aTab==='log'){$('aTitel').textContent='BEDIENINGSLOG — WIE DEED WAT';
+    $('aHead').innerHTML='<tr><th style="width:120px">DATUM</th><th style="width:120px">TIJD</th><th style="width:220px">GEBRUIKER</th><th>ACTIE</th></tr>';
+    $('aBody').innerHTML=logboek.map(l=>`<tr><td>${datum(l.tijd)}</td><td>${tijd(l.tijd)}</td><td><b>${l.wie}</b></td><td>${l.t}</td></tr>`).join('');return}
+  let lijst=alarms.filter(a=>aTab==='historie'||isActief(a)).filter(a=>!aFilter||a.k===aFilter);
+  if(aTab==='actief')lijst.sort((a,b)=>(!!a.bev-!!b.bev)||('SWI'.indexOf(a.k)-'SWI'.indexOf(b.k))||(b.komt-a.komt));else lijst.sort((a,b)=>b.komt-a.komt);
+  $('aTitel').textContent=aTab==='actief'?'ACTIEVE MELDINGEN':'MELDINGENHISTORIE (VANDAAG)';
+  $('aHead').innerHTML='<tr><th style="width:90px">NR</th><th style="width:150px">KLASSE</th><th style="width:100px">KOMT</th><th style="width:100px">GAAT</th><th style="width:220px">BEVESTIGD</th><th>TEKST</th><th style="width:90px">STATUS</th></tr>';
+  $('aBody').innerHTML=lijst.map(a=>{const [n,bg,fg]=KLASSE[a.k],stt='K'+(a.gaat?'G':'')+(a.bev?'B':''),kn=!a.bev&&!a.gaat;
+    return `<tr data-key="${a.key}" class="${a.key===aSel?'sel':''}" style="${a.gaat&&aTab==='historie'?'color:#5A6068':''}"><td><b>${a.id}</b></td><td><span class="st" style="background:${bg};color:${fg}">${n}</span></td>
+     <td>${tijd(a.komt)}</td><td>${tijd(a.gaat)}</td><td>${a.bev?tijd(a.bev)+' · '+a.door:''}</td><td>${a.tekst}</td>
+     <td><span class="st" style="background:${kn?bg:'#C3C7CB'};color:${kn?fg:'#1A1D20'};${kn?'animation:knip 1s steps(1) infinite':''}">${stt}</span></td></tr>`}).join('')||'<tr><td colspan="7" style="color:var(--tekst2)">Geen meldingen</td></tr>';
+}
+
+/* ===================== F6 DIAGNOSE ===================== */
+let dTab='systeem',uSel=0,cpu=24,cyc=5.1;
+function bouwDiagnose(){const S=$('scr6');
+  const t=el('div','tabs','','',S);
+  [['systeem','SYSTEEM'],['gebruikers','GEBRUIKERS'],['rechten','RECHTEN']].forEach(([id,n])=>{const e=el('div','tab'+(id==='systeem'?' on':''),'',n,t);
+    e.onclick=()=>{dTab=id;t.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));e.classList.add('on');
+      ['systeem','gebruikers','rechten'].forEach(x=>$('d_'+x).style.display=x===id?'block':'none');ververs()}});
+  const sys=el('div','','','',S);sys.id='d_systeem';
+  pnl(sys,10,124,800,616,'NETWERK — PROFINET');
+  const nodes=[['PLC','PLC · MAGAZIJN',40,190,'ok'],['HMI','HMI-PANEEL 12"',40,300,'ok'],['SW','SWITCH',320,245,'ok'],['LP1','LIJN-PLC 1',40,430,'ok'],['LP2','LIJN-PLC 2',40,540,'ok'],
+    ['MES','MES-SERVER (LAPTOP)',320,590,'ok'],['IO1','I/O GANG BLAUW',580,160,'ok'],['IO2','I/O GANG GROEN',580,250,'ok'],['FK1','AANDRIJVING K1',580,340,'ok'],['FK2','AANDRIJVING K2',580,430,'ok'],['SCN','SCANNER INVOER',580,520,'W']];
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('width',1280);svg.setAttribute('height',800);svg.style.cssText='position:absolute;left:0;top:0;pointer-events:none';
+  svg.innerHTML='<polyline points="415,299 415,590" fill="none" stroke="#2E8B57" stroke-width="3" stroke-dasharray="8 4"/>'+nodes.filter(n=>n[0]!=='SW'&&n[0]!=='MES').map(n=>{const sx=410,sy=272,nx=n[2]+(n[2]<300?190:0),ny=n[3]+27;return `<polyline points="${nx},${ny} ${(sx+nx)/2},${ny} ${(sx+nx)/2},${sy} ${sx},${sy}" fill="none" stroke="#2E8B57" stroke-width="3"/>`}).join('');
+  sys.appendChild(svg);
+  nodes.forEach(([id,n,x,y,st])=>el('div','mach',`left:${x}px;top:${y}px;width:190px;height:54px`,`<div class="h"><span class="led" style="background:${st==='ok'?'#3FC24A':'#F2C200'};color:${st==='ok'?'#3FC24A':'#F2C200'}"></span>${n}</div><div class="v" style="font-size:14px;padding:4px 8px" id="dn${id}"></div>`,sys));
+  el('div','abs','left:30px;top:700px;width:760px;display:flex;gap:22px;font-size:14px',
+    '<span style="color:var(--tekst2)">Gestreept = OPC UA (MES)</span><span><span class="led" style="display:inline-block;background:#3FC24A;color:#3FC24A"></span> OK</span><span><span class="led" style="display:inline-block;background:#F2C200;color:#F2C200"></span> Waarschuwing</span><span><span class="led" style="display:inline-block;background:#D93636;color:#D93636"></span> Storing / geen verbinding</span><span style="color:var(--tekst2)">Lijn groen = verbinding actief</span>',sys);
+  pnl(sys,820,124,450,616,'PLC').innerHTML+=`<div id="dPlc" style="padding:6px 0"></div>`;
+
+  const gb=el('div','','display:none','',S);gb.id='d_gebruikers';
+  const p=pnl(gb,10,124,1260,616,'GEBRUIKERS<span class="r" style="font-weight:500;letter-spacing:.3px">Automatisch afmelden na 5 min inactiviteit</span>');
+  el('div','',`height:500px;overflow:auto`,'<table class="tbl"><thead><tr><th>NAAM</th><th>ROL</th><th>STATUS</th><th>LAATST AANGEMELD</th><th>PINCODE</th></tr></thead><tbody id="uBody"></tbody></table>',p);
+  const b=el('div','',`position:absolute;left:10px;right:10px;bottom:10px;display:flex;gap:10px`,'',p);
+  [['plus','NIEUWE GEBRUIKER',()=>{const n='Operator '+(users.filter(u=>u.rol==='Operator').length+1);users.push({naam:n,rol:'Operator',pin:'0000',actief:true,laatst:'—'});uSel=users.length-1;log('Gebruiker '+n+' aangemaakt');toast(n+' aangemaakt (PIN 0000)',true)}],
+   ['user','ROL WIJZIGEN',()=>{const u=users[uSel];if(u===user){toast('Eigen rol kan niet gewijzigd worden');return}u.rol=ROLLEN[NIV[u.rol]%3+1];log('Rol '+u.naam+' → '+u.rol)}],
+   ['lock','BLOKKEREN / VRIJGEVEN',()=>{const u=users[uSel];if(u===user){toast('Eigen account kan niet geblokkeerd worden');return}u.actief=!u.actief;log('Gebruiker '+u.naam+(u.actief?' vrijgegeven':' geblokkeerd'))}],
+   ['reset','PIN RESETTEN',()=>{users[uSel].pin='0000';log('PIN '+users[uSel].naam+' gereset');toast('PIN gereset naar 0000',true)}]]
+   .forEach(([i,t,fn])=>actie(el('div','knop','height:50px;flex:1',ic(i,18)+t,b),'gebruikers',()=>{fn();ververs()}));
+
+  const rc=el('div','','display:none','',S);rc.id='d_rechten';
+  const q=pnl(rc,10,124,1260,616,'RECHTEN PER ROL');
+  el('div','',`padding:0`,`<table class="tbl"><thead><tr><th>FUNCTIE</th>${ROLLEN.map(r=>`<th style="width:150px;text-align:center">${r.toUpperCase()}</th>`).join('')}</tr></thead><tbody>${
+    RECHTEN.map(([id,n,lv])=>`<tr style="cursor:default"><td>${n}</td>${ROLLEN.map((r,i)=>`<td style="text-align:center;color:${i>=lv?'#3B6D11':'#A0A5AA'}">${i>=lv?ic('check',20):'—'}</td>`).join('')}</tr>`).join('')}</tbody></table>
+    <div style="padding:14px;color:var(--tekst2)">Elke rol erft de rechten van de rol links ervan. Knoppen zonder recht tonen een slotje; tikken opent het aanmeldscherm.</div>`,q);
+}
+function verversDiagnose(){
+  cpu=Math.max(14,Math.min(38,cpu+(rnd()-.5)*4));cyc=Math.max(3.2,Math.min(8.5,cyc+(rnd()-.5)*.6));
+  const dn={PLC:'Cyclus '+cyc.toFixed(1).replace('.',',')+' ms',HMI:user?user.naam:'Niet aangemeld',SW:'10 poorten · 100 Mbit',LP1:'Lijn 1 RUN',LP2:'Lijn 2 RUN',IO1:'32 DI · 16 DQ OK',IO2:'32 DI · 16 DQ OK',
+    FK1:K[0].vx.toFixed(1).replace('.',',')+' m/s',FK2:K[1].vx.toFixed(1).replace('.',',')+' m/s',SCN:'Leesfouten 0,8 %',MES:'OPC UA · leven '+mesLeven};
+  for(const k in dn)$('dn'+k).textContent=dn[k];
+  $('dPlc').innerHTML=`<div style="padding:4px 12px 10px"><div style="display:flex;justify-content:space-between" class="label"><span>CPU-BELASTING</span><b style="color:var(--tekst)">${Math.round(cpu)} %</b></div><div class="balk" style="height:20px;margin-top:4px"><i style="width:${cpu}%;background:#3B6D11"></i></div></div>`+
+    [['BEDRIJFSTOESTAND','RUN'],['CYCLUSTIJD ACT','<span style="font-variant-numeric:tabular-nums">'+cyc.toFixed(1).replace('.',',')+' ms</span>'],['CYCLUSTIJD MIN / MAX','3,1 / 12,4 ms'],['GEHEUGEN WERK','41 %'],['GEHEUGEN LAAD','18 %'],
+     ['BEDRIJFSUREN','18.204 h'],['LAATSTE DOWNLOAD','14-10-2026 16:22'],['HMI-VERBINDINGEN','2 / 8'],['OPC UA-CLIENTS','1 (MES-bridge)'],['MES-LEVENSTEKEN',mesLeven],['PROFINET-APPARATEN','10 / 10 bereikbaar']]
+    .map(([a,b])=>`<div class="rij"><span class="label">${a}</span><span class="waarde">${b}</span></div>`).join('');
+  $('uBody').innerHTML=users.map((u,i)=>`<tr data-u="${i}" class="${i===uSel?'sel':''}"><td><b>${u.naam}</b>${u===user?' <span class="st" style="background:#2A71B8;color:#fff;height:20px">AANGEMELD</span>':''}</td><td>${u.rol}</td>
+    <td>${u.actief?'<span class="st" style="background:#3B6D11;color:#fff">ACTIEF</span>':'<span class="st" style="background:#80868C;color:#fff">GEBLOKKEERD</span>'}</td><td>${u.laatst}</td><td style="letter-spacing:3px">••••</td></tr>`).join('');
+}
+
+/* ===================== aanmelden ===================== */
+let loginSel=0,pinIn='';
+function openLogin(){pinIn='';$('loginFout').textContent='';loginSel=Math.max(0,users.findIndex(u=>u.actief));tekenLogin();$('scrim').classList.add('on')}
+function tekenLogin(){
+  $('loginLijst').innerHTML=users.map((u,i)=>`<div class="gebr ${i===loginSel?'on':''}" data-i="${i}" style="${u.actief?'':'opacity:.45'}">${ic('user',24)}<div><b>${u.naam}</b><small>${u.rol}${u.actief?'':' · geblokkeerd'}</small></div></div>`).join('');
+  $('dots').querySelectorAll('i').forEach((d,i)=>d.classList.toggle('vol',i<pinIn.length));
+  $('btnAfmelden').style.visibility=user?'visible':'hidden';
+}
+function probeerLogin(){const u=users[loginSel];
+  if(!u.actief){$('loginFout').textContent='Gebruiker is geblokkeerd';pinIn='';tekenLogin();return}
+  if(pinIn!==u.pin){$('loginFout').textContent='Onjuiste pincode';pinIn='';tekenLogin();return}
+  user=u;idle=0;const d=new Date();u.laatst=datum(d)+' '+tijd(d).slice(0,5);log('Aangemeld');$('scrim').classList.remove('on');rechtenVernieuwen();toast('Aangemeld als '+u.naam+' ('+u.rol+')',true);ververs()}
+function afmelden(reden){if(!user)return;log(reden||'Afgemeld');user=null;rechtenVernieuwen();ververs()}
+
+/* ===================== frame: kop, alarmregel, F-toetsen ===================== */
+const SCHERMEN=[['fabriek','Fabriek','FABRIEK'],['magazijn','Magazijn','OVERZICHT'],['orders','Orders','ORDERS'],['kraan','Kraan','KRAAN'],['alarm','Alarmen','MELDINGEN'],['diagnose','Diagnose','DIAGNOSE']];
+let scherm=2;
+function toonScherm(n){scherm=n;for(let i=1;i<=6;i++)$('scr'+i).classList.toggle('on',i===n);
+  document.querySelectorAll('#ftoetsen .knop').forEach((k,i)=>k.classList.toggle('blauw',i+1===n));
+  $('kopScherm').textContent='· '+SCHERMEN[n-1][2];$('kopIcoon').innerHTML=ic(SCHERMEN[n-1][0],20);ververs()}
+function bouwFrame(){
+  SCHERMEN.forEach(([i,n],j)=>{const e=el('div','knop','',`<small>F${j+1}</small>${ic(i,18)}${n}${i==='alarm'?' <span class="badge" id="fBadge"></span>':''}`,$('ftoetsen'));e.onclick=()=>toonScherm(j+1)});
+  $('chipUser').onclick=openLogin;$('loginIcoon').innerHTML=ic('user',16);
+  const pin=$('pin');['1','2','3','4','5','6','7','8','9','C','0','OK'].forEach(t=>{const e=el('div','knop'+(t==='OK'?' blauw':''),t==='OK'||t==='C'?'font-size:18px':'',t,pin);
+    e.onclick=()=>{if(t==='C')pinIn='';else if(t==='OK')return probeerLogin();else if(pinIn.length<4){pinIn+=t;if(pinIn.length===4){tekenLogin();return setTimeout(probeerLogin,150)}}tekenLogin()}});
+  $('loginLijst').onclick=e=>{const g=e.target.closest('.gebr');if(g){loginSel=+g.dataset.i;pinIn='';$('loginFout').textContent='';tekenLogin()}};
+  $('btnSluit').onclick=()=>$('scrim').classList.remove('on');
+  $('btnAfmelden').onclick=()=>{afmelden();$('scrim').classList.remove('on')};
+  actie($('btnBevestig'),'alarm',()=>{bevestig(alarmRegel);ververs()});
+  $('oBody').onclick=e=>{const r=e.target.closest('tr');if(r){orderSel=r.dataset.nr;ververs()}};
+  $('aBody').onclick=e=>{const r=e.target.closest('tr');if(r&&r.dataset.key){aSel=+r.dataset.key;ververs()}};
+  $('uBody').onclick=e=>{const r=e.target.closest('tr');if(r){uSel=+r.dataset.u;ververs()}};
+  addEventListener('keydown',e=>{const m=/^F([1-6])$/.exec(e.key);if(m){e.preventDefault();toonScherm(+m[1])}});
+  $('scherm').addEventListener('pointerdown',()=>idle=0);
+}
+let alarmRegel=null;
+function verversKop(){
+  $('ledMes').style.background=$('ledMes').style.color=mesOnline?'#5CE05C':'#E03030';
+  const kl={AUTO:'#5CE05C',STOP:'#E03030',HAND:'#F2C200'}[modus];$('ledModus').style.background=kl;$('ledModus').style.color=kl;$('txtModus').textContent=modus;
+  const act=alarms.filter(isActief).sort((a,b)=>(!!a.bev-!!b.bev)||('SWI'.indexOf(a.k)-'SWI'.indexOf(b.k))||(b.komt-a.komt));
+  alarmRegel=act[0]||null;const e=$('alarm');
+  e.className='abs '+(alarmRegel?alarmRegel.k:'rust')+(act.some(a=>!a.bev)?' knipper':'');
+  $('alarmTeller').textContent=act.length;$('fBadge').textContent=act.length;$('fBadge').style.display=act.length?'inline-flex':'none';
+  $('alarmTekst').innerHTML=alarmRegel?`${tijd(alarmRegel.komt)} &nbsp; ${alarmRegel.id} &nbsp; ${alarmRegel.tekst}${alarmRegel.bev?' &nbsp;<span style="font-weight:500">(bevestigd)</span>':''}`:'Geen actieve meldingen';
+  $('btnBevestig').style.visibility=alarmRegel&&!alarmRegel.bev?'visible':'hidden';
+  if(user&&$('logoff')){const r=LOGOFF-idle;$('logoff').textContent=Math.floor(r/60)+':'+z(r%60)}
+}
+function ververs(){verversKop();[verversFabriek,verversMagazijn,verversOrders,verversKraan,verversAlarmen,verversDiagnose][scherm-1]()}
+
+/* ===================== start ===================== */
+bouwFabriek();bouwMagazijn();bouwOrders();bouwKraan();bouwAlarmen();bouwDiagnose();bouwFrame();rechtenVernieuwen();toonScherm(2);
+
+setInterval(()=>{const now=Date.now();K.forEach(k=>kraanTick(k,now));
+  if(scherm===2)kranenMagazijn();if(scherm===4)kraanTekenen()},50);
+setInterval(()=>{const now=Date.now();
+  const storing=Object.values(V).some(v=>v.b&&v.t===0);
+  if(storing&&!alarmLoopt('W-104'))alarmKomt('W-104','W','Vak 137 — product onbekend (Soort 0)');
+  if(!storing&&alarmLoopt('W-104'))alarmGaat('W-104');
+  if(now>w221Volgende&&!alarmLoopt('W-221')){alarmKomt('W-221','W','Kraan K2 — vorksensor vervuild');w221Gaat=now+15000;w221Volgende=now+60000}
+  if(w221Gaat&&now>w221Gaat){alarmGaat('W-221');w221Gaat=0}
+  if(now%1000<500)mesLeven=(mesLeven+1)%30000;
+  if(now>mesVolgende){mesOrder();mesVolgende=now+40000}
+  ververs()},500);
+setInterval(()=>{const d=new Date();$('klok').textContent=z(d.getDate())+'-'+z(d.getMonth()+1)+'-'+d.getFullYear()+'  '+tijd(d);
+  if(user){idle++;if(idle>=LOGOFF)afmelden('Automatisch afgemeld (inactief)')}},1000);
+
+function schaal(){const fit=$('fit'),w=Math.min(document.body.clientWidth-32,1360),k=w/1360;
+  $('paneel').style.transform='scale('+k+')';fit.style.width=w+'px';fit.style.height=(900*k)+'px'}
+addEventListener('resize',schaal);schaal();
+</script>
+</body>
+</html>
